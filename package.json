@@ -1,0 +1,36 @@
+{
+  "name": "sistema-financeiro-pessoal",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k \"npm run dev --workspace=apps/api\" \"npm run dev --workspace=apps/web\"",
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=packages/contracts && npm run build --workspace=packages/config && npm run build --workspace=apps/api && npm run build --workspace=apps/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run build --workspace=packages/contracts && npm run build --workspace=packages/config && npm run test --workspace=apps/api && npm run test --workspace=apps/web",
+    "typecheck": "npm run build --workspace=packages/contracts && npm run build --workspace=packages/config && npm run typecheck --workspace=apps/api && npm run typecheck --workspace=apps/web",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "db:generate": "npm run db:generate --workspace=apps/api",
+    "db:migrate": "npm run db:migrate --workspace=apps/api",
+    "db:studio": "npm run db:studio --workspace=apps/api"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^9.1.2",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "prettier": "^3.9.6",
+    "typescript": "^6.0.3"
+  }
+}
