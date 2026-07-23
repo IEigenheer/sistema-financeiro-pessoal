@@ -94,7 +94,7 @@ Armazena a configuracao financeira ativa do controle.
 | firstSalaryInstallmentAmount | NUMERIC(19,2) | positivo, preservado exatamente |
 | firstSalaryInstallmentDay | SMALLINT | 1..31 |
 | defaultMonthlyContribution | NUMERIC(19,2) | positivo ou zero |
-| projectedMonthlyInvestmentRate | NUMERIC(12,8) | pode ser zero |
+| projectedMonthlyInvestmentYieldRate | NUMERIC(12,8) | pode ser zero |
 | initialOperationalBalance | NUMERIC(19,2) | pode ser zero |
 | initialInvestmentBalance | NUMERIC(19,2) | pode ser zero |
 | active | BOOLEAN | apenas uma configuracao ativa |
@@ -444,3 +444,4 @@ Evita duplicidade tecnica em requisicoes repetidas da API.
 - Resgates e aportes devem ocorrer em transacao por alterarem dois saldos.
 - Ajustes manuais exigem `adjustmentTarget` e `adjustmentDirection` explicitos.
 - Nenhum fluxo de correcao ou estorno usa valor monetario negativo como atalho semantico.
+

@@ -93,7 +93,7 @@
 - [ ] T046 [P] [US1] Criar testes de integração de configurações e categorias; arquivos: `apps/api/tests/integration/financial-settings-and-categories.spec.ts`; depende de: T024, T026, T038; concluído quando: `GET/PUT /v1/financial-settings`, `POST /start-date-preview` e `GET/POST/PATCH /v1/categories` estiverem cobertos.
 - [ ] T047 [P] [US1] Criar testes de integração do overview mensal mínimo; arquivos: `apps/api/tests/integration/monthly-overview-bootstrap.spec.ts`; depende de: T024, T026, T036, T037; concluído quando: `GET /v1/months/{month}/overview` validar mês dentro/fora do período, parcelas salariais, receitas previstas e saldo inicial aplicável.
 - [ ] T048 [P] [US1] Criar testes de frontend da US1; arquivos: `apps/web/src/features/financial-settings/financial-settings-page.test.tsx`, `apps/web/src/features/categories/categories-page.test.tsx` e `apps/web/src/features/monthly-overview/monthly-overview-page.test.tsx`; depende de: T039, T040, T041, T042; concluído quando: formulários, overview somente leitura e mensagens de confirmação estiverem exercitados.
-- [ ] T049 [US1] Implementar DTOs de configurações financeiras; arquivos: `apps/api/src/modules/financial-settings/interfaces/http/dto/upsert-financial-settings.dto.ts` e `apps/api/src/modules/financial-settings/interfaces/http/dto/start-date-preview.dto.ts`; depende de: T045; concluído quando: dinheiro positivo e datas locais forem validados no backend.
+- [ ] T049 [US1] Implementar DTOs de configurações financeiras; arquivos: `apps/api/src/modules/financial-settings/interfaces/http/dto/upsert-financial-settings.dto.ts` e `apps/api/src/modules/financial-settings/interfaces/http/dto/start-date-preview.dto.ts`; depende de: T045; concluído quando: dinheiro positivo, datas locais e o campo `projectedMonthlyInvestmentYieldRate` forem validados no backend.
 - [ ] T050 [US1] Implementar controller de configurações financeiras; arquivos: `apps/api/src/modules/financial-settings/interfaces/http/financial-settings.controller.ts`; depende de: T046, T049; concluído quando: os endpoints de leitura, gravação e preview estiverem documentados e alinhados ao OpenAPI.
 - [ ] T051 [US1] Implementar serviço e casos de uso de configurações; arquivos: `apps/api/src/modules/financial-settings/application/financial-settings.service.ts` e `apps/api/src/modules/financial-settings/financial-settings.module.ts`; depende de: T045, T050, T036, T038; concluído quando: a alteração da data inicial bloquear históricos realizados e recalcular apenas automações elegíveis.
 - [ ] T052 [US1] Implementar DTOs de categorias; arquivos: `apps/api/src/modules/categories/interfaces/http/dto/create-category.dto.ts` e `apps/api/src/modules/categories/interfaces/http/dto/update-category.dto.ts`; depende de: T045; concluído quando: categorias de despesas aceitarem apenas nome e ativação.
@@ -101,7 +101,7 @@
 - [ ] T054 [US1] Implementar contrato HTTP do overview mensal mínimo; arquivos: `apps/api/src/modules/monthly-overviews/interfaces/http/monthly-overview.controller.ts`; depende de: T047; concluído quando: `GET /v1/months/{month}/overview` expuser `withinControlPeriod`, parcelas salariais e totais mínimos da US1.
 - [ ] T055 [US1] Implementar serviço do overview mensal mínimo; arquivos: `apps/api/src/modules/monthly-overviews/application/monthly-overview.service.ts`; depende de: T047, T036, T037, T051; concluído quando: meses anteriores à data inicial não gerarem automações e meses válidos retornarem o overview mínimo.
 - [ ] T056 [US1] Criar página de configurações; arquivos: `apps/web/src/app/configuracoes/page.tsx` e `apps/web/src/features/financial-settings/financial-settings-page.tsx`; depende de: T048, T039, T041, T050; concluído quando: a tela carregar dados atuais e fluxo de salvar com tratamento de erro.
-- [ ] T057 [US1] Implementar formulário e preview de configurações; arquivos: `apps/web/src/features/financial-settings/financial-settings-form.tsx` e `apps/web/src/features/financial-settings/financial-settings.schema.ts`; depende de: T048, T042, T051, T056; concluído quando: salário, primeira parcela, aporte e saldos forem validados como strings monetárias positivas.
+- [ ] T057 [US1] Implementar formulário e preview de configurações; arquivos: `apps/web/src/features/financial-settings/financial-settings-form.tsx` e `apps/web/src/features/financial-settings/financial-settings.schema.ts`; depende de: T048, T042, T051, T056; concluído quando: salário, primeira parcela, `projectedMonthlyInvestmentYieldRate`, aporte e saldos forem validados como strings monetárias positivas.
 - [ ] T058 [US1] Implementar tela de categorias; arquivos: `apps/web/src/app/categorias/page.tsx`, `apps/web/src/features/categories/categories-page.tsx` e `apps/web/src/features/categories/category-form.tsx`; depende de: T048, T042, T053; concluído quando: cadastro, edição e desativação de categorias de despesas estiverem disponíveis.
 - [ ] T059 [US1] Implementar overview mensal somente leitura da US1; arquivos: `apps/web/src/app/mes/[month]/page.tsx` e `apps/web/src/features/monthly-overview/monthly-overview-card.tsx`; depende de: T048, T039, T040, T055; concluído quando: a US1 puder ser demonstrada sem a US2 por meio do overview mínimo.
 
@@ -203,8 +203,15 @@
 - [ ] T114 Atualizar checklist de requisitos; arquivos: `specs/001-nucleo-controle-financeiro/checklists/requirements.md`; depende de: T110; concluído quando: cada requisito funcional e cada história tiverem forma explícita de validação.
 - [ ] T115 Atualizar contexto operacional do agente; arquivos: `AGENTS.md`; depende de: T105; concluído quando: convenções de dinheiro decimal, datas financeiras, idempotência e auditoria estiverem refletidas no contexto do projeto.
 - [ ] T116 Criar smoke test do contrato OpenAPI; arquivos: `apps/api/tests/integration/openapi-contract-smoke.spec.ts`; depende de: T050, T053, T065, T068, T082, T086, T097, T098, T111; concluído quando: todos os endpoints do contrato tiverem cobertura mínima de disponibilidade e shape esperado.
+- [ ] T117 Criar massa fictícia para validação de performance; arquivos: `apps/api/prisma/performance-seed.ts` e `specs/001-nucleo-controle-financeiro/performance/performance-dataset.md`; depende de: T087, T097, T098; concluído quando: existir um conjunto reproduzível de dados fictícios suficiente para medir overview, dashboard e materialização sem usar dados reais.
+- [ ] T118 Medir performance do overview mensal; arquivos: `apps/api/tests/performance/monthly-overview.perf.spec.ts`; depende de: T117, T070, T116; concluído quando: o endpoint `GET /v1/months/{month}/overview` for medido com comandos reproduzíveis e resultados brutos persistidos.
+- [ ] T119 Medir performance do dashboard; arquivos: `apps/api/tests/performance/dashboard.perf.spec.ts`; depende de: T117, T097, T116; concluído quando: o endpoint `GET /v1/dashboard` for medido com comandos reproduzíveis e resultados brutos persistidos.
+- [ ] T120 Medir performance da materialização mensal; arquivos: `apps/api/tests/performance/month-materialization.perf.spec.ts`; depende de: T117, T083, T087; concluído quando: a materialização sob demanda de um mês completo for medida com comandos reproduzíveis e sem infraestrutura de produção.
+- [ ] T121 Registrar resultados de performance e ambiente; arquivos: `specs/001-nucleo-controle-financeiro/performance/results.md`; depende de: T118, T119, T120; concluído quando: tempos observados, tamanho da massa, máquina local e comandos executados estiverem documentados.
+- [ ] T122 Comparar resultados com as metas do plano; arquivos: `specs/001-nucleo-controle-financeiro/performance/assessment.md`; depende de: T121; concluído quando: overview, dashboard e materialização estiverem comparados explicitamente com as metas de `plan.md`.
+- [ ] T123 Registrar desvios de performance como pendências; arquivos: `specs/001-nucleo-controle-financeiro/performance/deviations.md`; depende de: T122; concluído quando: qualquer desvio em relação às metas estiver registrado como pendência antes de declarar a feature completa concluída.
 
-**Checkpoint F12**: documentação, segurança mínima e validação contratual concluídas.
+**Checkpoint F12**: documentação, segurança mínima, validação contratual e validação de performance da feature completa concluídas.
 
 ---
 
@@ -223,20 +230,17 @@
 - US4 depende dos dados produzidos por US2 e US3.
 - Fase 10 depende da base visual da US4.
 - Fase 11 depende das histórias implementadas e da integração principal.
-- Fase 12 depende das histórias desejadas, dos testes E2E e do contrato estabilizado.
+- Fase 12 depende das histórias desejadas, dos testes E2E, do contrato estabilizado e da validação final de performance da feature completa.
 
-### Caminho crítico
+### Fluxo crítico representativo
 
-- Base do monorepo e da API: `T001 -> T002 -> T008 -> T012 -> T021 -> T022 -> T023 -> T024 -> T026 -> T027`
-- Núcleo financeiro obrigatório: `T029 -> T033 -> T034 -> T035 -> T036 -> T037 -> T038`
-- Camada de integração antecipada: `T009 -> T014 -> T039 -> T040 -> T041 -> T042` e `T038 -> T043 -> T044`
-- US1 demonstrável: `T045 -> T049 -> T050 -> T051` com `T047 -> T054 -> T055`, concluindo em `T048 -> T056 -> T057 -> T059`
-- US2 obrigatória para o fluxo mensal: `T062 -> T064 -> T065 -> T066 -> T070 -> T071 -> T072 -> T075`
-- US3 obrigatória para parcelamentos e investimentos: `T076 -> T078 -> T080 -> T081 -> T082 -> T083` e `T077 -> T084 -> T085 -> T086 -> T087`
-- Fechamento analítico da feature: `T094 -> T097 -> T099 -> T101 -> T102 -> T103 -> T104 -> T105 -> T106 -> T110 -> T116`
+- As dependências declaradas individualmente em cada tarefa são a fonte autoritativa para a ordem de execução.
+- Marcadores `[P]` só permitem paralelismo quando todas as dependências declaradas da tarefa já estiverem concluídas.
+- O bloco abaixo é apenas um resumo representativo e não substitui as dependências individuais de cada tarefa.
+- Sequência representativa válida para o MVP da US1: `T001 -> T002 -> T003 -> T007 -> T008 -> T009 -> T010 -> T011 -> T012 -> T013 -> T014 -> T015 -> T021 -> T022 -> T023 -> T024 -> T025 -> T026 -> T029 -> T030 -> T033 -> T034 -> T035 -> T036 -> T037 -> T038 -> T039 -> T040 -> T041 -> T042 -> T045 -> T046 -> T047 -> T048 -> T049 -> T050 -> T051 -> T052 -> T053 -> T054 -> T055 -> T056 -> T057 -> T058 -> T059`
+- Essa sequência cobre setup, infraestrutura fundamental, schema e migrations necessários, contratos e integração web/API, backend da US1, frontend da US1, testes da US1 e o checkpoint do MVP.
 
 ### Paralelismo seguro
-
 - T003, T004, T005, T006, T009 e T010 podem ocorrer em paralelo após T001-T002.
 - T011, T013, T014, T016 e T017 podem ocorrer em paralelo na Fase 2 porque escrevem arquivos distintos.
 - T029, T030, T031 e T032 podem ocorrer em paralelo na Fase 4.
@@ -249,9 +253,13 @@
 
 - Testes críticos vêm antes da implementação correspondente para regras financeiras, materialização, parcelamentos, investimentos e auditoria.
 - Nenhuma tarefa de frontend funcional começa antes da camada de integração T039-T044.
-- Tarefas marcadas com `[P]` não compartilham o mesmo arquivo e não dependem de um artefato ainda inexistente no mesmo passo.
-- A US1 forma o primeiro incremento executável, demonstrável e testável sem depender da US2.
+- Tarefas marcadas com `[P]` não compartilham o mesmo arquivo e não dependem de um artefato ainda inexistente no mesmo passo; elas só podem começar depois que todas as dependências individuais declaradas estiverem concluídas.
+- A US1 forma o primeiro incremento executável, demonstrável e testável sem depender da US2, e as tarefas T117-T123 não bloqueiam esse checkpoint inicial do MVP.
 - O escopo exclui autenticação, múltiplos usuários, Open Finance, integração bancária, app mobile, simulador avançado, importação definitiva da planilha e controle individual de ativos.
+
+
+
+
 
 
 

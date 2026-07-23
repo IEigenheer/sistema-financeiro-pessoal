@@ -24,7 +24,7 @@ Entregar a base técnica de um monorepo de finanças pessoais com `apps/web` em 
 
 **Project Type**: Monorepo web application
 
-**Performance Goals**: visão mensal consolidada em até 300 ms p95 no backend com base típica de uso pessoal; dashboard inicial em até 2 s com até 10 anos de histórico; materialização sob demanda de um mês em até 500 ms p95 sem duplicidades
+**Performance Goals**: visão mensal consolidada em até 300 ms p95 no backend com base típica de uso pessoal; dashboard inicial em até 2 s com até 10 anos de histórico; materialização sob demanda de um mês em até 500 ms p95 sem duplicidades. Essas metas se aplicam à feature completa e devem ser validadas com dados fictícios e comandos reproduzíveis antes do encerramento total da feature, sem bloquear o checkpoint inicial do MVP da US1.
 
 **Constraints**: interface em pt-BR, moeda BRL, timezone padrão `America/Sao_Paulo`, datas financeiras como `DATE`, transporte de datas `YYYY-MM-DD`, dinheiro sem `number`, arredondamento monetário `ROUND_HALF_UP`, sem Nx/Turborepo, sem autenticação nesta feature, sem dados reais da planilha no repositório
 
@@ -132,3 +132,4 @@ apps/
 ## Complexity Tracking
 
 Nenhuma violação constitucional exige justificativa nesta fase. As complexidades removidas intencionalmente são: ausência de Nx/Turborepo, ausência de event sourcing completo, ausência de tabelas mensais físicas, ausência de autenticação nesta feature e ausência de simulador avançado nesta etapa.
+
