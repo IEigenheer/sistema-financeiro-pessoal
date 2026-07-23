@@ -20,7 +20,9 @@
   - Developed independently
   - Tested independently
   - Deployed independently
-  - Demonstrated to users independently
+  - Demonstrated to users
+  - Specified with exact amounts, periods, units, rounding expectations, and
+    scenario distinctions whenever financial behavior is involved
 -->
 
 ### User Story 1 - [Brief Title] (Priority: P1)
@@ -71,18 +73,25 @@
 ### Edge Cases
 
 <!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right edge cases.
+  ACTION REQUIRED: Replace these prompts with feature-specific edge cases.
 -->
 
-- What happens when [boundary condition]?
-- How does system handle [error scenario]?
+- What happens when an amount arrives with more decimal precision than the
+  supported currency scale?
+- How does the system behave when recurrence, projection horizon, or date cutoff
+  changes affect previously simulated results?
+- What happens when the simulated scenario diverges from the base scenario due
+  to changed assumptions, deleted inputs, or missing historical data?
+- How does the system reject invalid, duplicate, stale, or unauthorized input in
+  both frontend and backend?
 
 ## Requirements *(mandatory)*
 
 <!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right functional requirements.
+  ACTION REQUIRED: Replace the content in this section with testable
+  requirements. For financial features, define money representation, rounding
+  behavior, traceability, validation boundaries, and test obligations when
+  applicable.
 -->
 
 ### Functional Requirements
@@ -97,6 +106,14 @@
 
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
+
+### Constitutional Alignment *(mandatory)*
+
+- **Financial Rules**: [Define exact money representation, rounding policy, and how outputs trace back to their inputs.]
+- **Privacy & Security**: [Define sensitive data handling, validation in frontend and backend, and any files that MUST stay out of version control.]
+- **Architecture Boundaries**: [Identify affected frontend, backend, domain, and shared modules and explain where business rules will live.]
+- **Database Impact**: [List required schema changes, migrations, transaction boundaries, and data retention or soft-delete expectations.]
+- **Test Strategy**: [List mandatory unit, integration, and regression tests tied to this feature.]
 
 ### Key Entities *(include if feature involves data)*
 
@@ -120,9 +137,8 @@
 ## Assumptions
 
 <!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right assumptions based on reasonable defaults
-  chosen when the feature description did not specify certain details.
+  ACTION REQUIRED: Replace the content in this section with explicit
+  assumptions. Assumptions MUST not override constitutional requirements.
 -->
 
 - [Assumption about target users, e.g., "Users have stable internet connectivity"]
