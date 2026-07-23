@@ -3,8 +3,8 @@ info:
   title: Sistema Financeiro Pessoal API
   version: 0.1.0
   description: >-
-    Contrato inicial da feature 001-nucleo-controle-financeiro. Define os fluxos
-    principais sem representar implementação pronta.
+    Contrato inicial da feature 001-nucleo-controle-financeiro. Define fluxos
+    funcionais planejados sem representar implementação pronta.
 servers:
   - url: http://localhost:3333
     description: Ambiente local planejado
@@ -47,11 +47,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [newControlStartDate]
-              properties:
-                newControlStartDate:
-                  $ref: '#/components/schemas/LocalDate'
+              $ref: '#/components/schemas/StartDatePreviewRequest'
       responses:
         '200':
           description: Preview da alteração
@@ -61,11 +57,11 @@ paths:
                 $ref: '#/components/schemas/ChangeImpactPreview'
   /v1/categories:
     get:
-      summary: Listar categorias
+      summary: Listar categorias de despesas
       tags: [Categories]
       responses:
         '200':
-          description: Lista de categorias
+          description: Lista de categorias de despesas
           content:
             application/json:
               schema:
@@ -73,7 +69,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/Category'
     post:
-      summary: Criar categoria
+      summary: Criar categoria de despesa
       tags: [Categories]
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -92,7 +88,7 @@ paths:
                 $ref: '#/components/schemas/Category'
   /v1/categories/{categoryId}:
     patch:
-      summary: Editar ou desativar categoria
+      summary: Editar ou desativar categoria de despesa
       tags: [Categories]
       parameters:
         - $ref: '#/components/parameters/CategoryId'
@@ -133,7 +129,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/FinancialEntry'
     post:
-      summary: Criar lançamento manual de receita ou despesa
+      summary: Criar lançamento manual de receita extra ou despesa
       tags: [Entries]
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -151,7 +147,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/FinancialEntry'
         '409':
-          description: Possível duplicidade detectada; cliente pode confirmar explicitamente
+          description: Possível duplicidade detectada; o cliente pode confirmar explicitamente
           content:
             application/json:
               schema:
@@ -175,7 +171,7 @@ paths:
                 $ref: '#/components/schemas/DuplicateCheckResponse'
   /v1/entries/{entryId}:
     patch:
-      summary: Atualizar lançamento ou mudar status planejado-realizado
+      summary: Atualizar lançamento ou mudar status de planejado para realizado
       tags: [Entries]
       parameters:
         - $ref: '#/components/parameters/EntryId'
@@ -194,7 +190,7 @@ paths:
                 $ref: '#/components/schemas/FinancialEntry'
   /v1/recurrence-rules:
     get:
-      summary: Listar regras de recorrência
+      summary: Listar regras de despesas fixas recorrentes
       tags: [Recurrence Rules]
       responses:
         '200':
@@ -225,7 +221,7 @@ paths:
                 $ref: '#/components/schemas/RecurrenceRule'
   /v1/recurrence-rules/{ruleId}:
     patch:
-      summary: Editar ou inativar regra de recorrência
+      summary: Editar ou inativar despesa fixa recorrente
       tags: [Recurrence Rules]
       parameters:
         - $ref: '#/components/parameters/RuleId'
@@ -275,7 +271,7 @@ paths:
                 $ref: '#/components/schemas/InstallmentPlan'
   /v1/installment-plans/{planId}/change-preview:
     post:
-      summary: Visualizar impacto da edição de um parcelamento
+      summary: Visualizar impacto da alteração de parcelamento
       tags: [Installment Plans]
       parameters:
         - $ref: '#/components/parameters/PlanId'
@@ -287,14 +283,14 @@ paths:
               $ref: '#/components/schemas/UpdateInstallmentPlanRequest'
       responses:
         '200':
-          description: Preview de impacto
+          description: Preview da alteração
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ChangeImpactPreview'
+                $ref: '#/components/schemas/InstallmentChangePreview'
   /v1/installment-plans/{planId}:
     patch:
-      summary: Editar parcelamento somente em parcelas futuras abertas
+      summary: Alterar parcelamento preservando histórico realizado
       tags: [Installment Plans]
       parameters:
         - $ref: '#/components/parameters/PlanId'
@@ -313,20 +309,20 @@ paths:
                 $ref: '#/components/schemas/InstallmentPlan'
   /v1/installment-plans/{planId}/cancel-preview:
     post:
-      summary: Visualizar impacto do cancelamento de um parcelamento
+      summary: Visualizar impacto do cancelamento de parcelamento
       tags: [Installment Plans]
       parameters:
         - $ref: '#/components/parameters/PlanId'
       responses:
         '200':
-          description: Preview de cancelamento
+          description: Preview do cancelamento
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ChangeImpactPreview'
+                $ref: '#/components/schemas/InstallmentCancelPreview'
   /v1/installment-plans/{planId}/cancel:
     post:
-      summary: Cancelar parcelamento sem apagar histórico
+      summary: Cancelar parcelamento preservando parcelas realizadas
       tags: [Installment Plans]
       parameters:
         - $ref: '#/components/parameters/PlanId'
@@ -344,6 +340,14 @@ paths:
       tags: [Investment Movements]
       parameters:
         - $ref: '#/components/parameters/MonthQuery'
+        - in: query
+          name: movementType
+          schema:
+            $ref: '#/components/schemas/InvestmentMovementType'
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/EntryStatus'
       responses:
         '200':
           description: Lista de movimentações
@@ -354,7 +358,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/InvestmentMovement'
     post:
-      summary: Criar aporte, rendimento, resgate ou ajuste manual
+      summary: Criar movimentação de investimento
       tags: [Investment Movements]
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -366,14 +370,14 @@ paths:
               $ref: '#/components/schemas/CreateInvestmentMovementRequest'
       responses:
         '201':
-          description: Movimento criado
+          description: Movimentação criada
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/InvestmentMovement'
   /v1/investment-movements/{movementId}:
     patch:
-      summary: Atualizar movimento de investimento
+      summary: Atualizar movimentação de investimento
       tags: [Investment Movements]
       parameters:
         - $ref: '#/components/parameters/MovementId'
@@ -385,28 +389,28 @@ paths:
               $ref: '#/components/schemas/UpdateInvestmentMovementRequest'
       responses:
         '200':
-          description: Movimento atualizado
+          description: Movimentação atualizada
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/InvestmentMovement'
   /v1/months/{month}/overview:
     get:
-      summary: Obter consolidação mensal
-      tags: [Monthly Overview]
+      summary: Consultar overview mensal consolidado
+      tags: [Months]
       parameters:
         - $ref: '#/components/parameters/MonthPath'
       responses:
         '200':
-          description: Consolidação do mês
+          description: Overview mensal
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/MonthlyOverview'
   /v1/months/{month}/breakdown:
     get:
-      summary: Obter rastreabilidade de um total mensal
-      tags: [Monthly Overview]
+      summary: Consultar composição rastreável de um total mensal
+      tags: [Months]
       parameters:
         - $ref: '#/components/parameters/MonthPath'
         - in: query
@@ -414,17 +418,31 @@ paths:
           required: true
           schema:
             type: string
+            enum:
+              - PLANNED_INCOME
+              - REALIZED_INCOME
+              - PLANNED_FIXED_EXPENSES
+              - REALIZED_EXPENSES
+              - VARIABLE_EXPENSES
+              - INSTALLMENTS
+              - CONTRIBUTIONS
+              - YIELDS
+              - OPERATIONAL_BALANCE
+              - INVESTMENT_BALANCE
+              - PLANNED_VS_REALIZED_DELTA
       responses:
         '200':
-          description: Itens que compõem o total solicitado
+          description: Detalhamento do valor consolidado
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/MonthlyBreakdown'
   /v1/dashboard:
     get:
-      summary: Obter dashboard inicial
+      summary: Consultar dashboard inicial
       tags: [Dashboard]
+      parameters:
+        - $ref: '#/components/parameters/MonthQuery'
       responses:
         '200':
           description: Indicadores e séries do dashboard
@@ -434,20 +452,11 @@ paths:
                 $ref: '#/components/schemas/DashboardResponse'
   /v1/audit/{entityName}/{entityId}:
     get:
-      summary: Listar trilha de auditoria de uma entidade
+      summary: Consultar trilha de auditoria de uma entidade
       tags: [Audit]
       parameters:
-        - in: path
-          name: entityName
-          required: true
-          schema:
-            type: string
-        - in: path
-          name: entityId
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: '#/components/parameters/EntityName'
+        - $ref: '#/components/parameters/EntityId'
       responses:
         '200':
           description: Eventos de auditoria da entidade
@@ -466,22 +475,8 @@ components:
       schema:
         type: string
         minLength: 8
-        maxLength: 255
+        maxLength: 128
       description: Chave para deduplicação técnica de operações repetidas.
-    MonthQuery:
-      in: query
-      name: month
-      required: false
-      schema:
-        $ref: '#/components/schemas/MonthDate'
-      description: Competência mensal no formato YYYY-MM-01.
-    MonthPath:
-      in: path
-      name: month
-      required: true
-      schema:
-        $ref: '#/components/schemas/MonthDate'
-      description: Competência mensal no formato YYYY-MM-01.
     CategoryId:
       in: path
       name: categoryId
@@ -517,65 +512,112 @@ components:
       schema:
         type: string
         format: uuid
+    MonthPath:
+      in: path
+      name: month
+      required: true
+      schema:
+        $ref: '#/components/schemas/MonthDate'
+    MonthQuery:
+      in: query
+      name: month
+      required: false
+      schema:
+        $ref: '#/components/schemas/MonthDate'
+    EntityName:
+      in: path
+      name: entityName
+      required: true
+      schema:
+        type: string
+        enum: [FINANCIAL_SETTINGS, CATEGORY, FINANCIAL_ENTRY, RECURRENCE_RULE, INSTALLMENT_PLAN, INVESTMENT_MOVEMENT]
+    EntityId:
+      in: path
+      name: entityId
+      required: true
+      schema:
+        type: string
+        format: uuid
   schemas:
-    MonthDate:
-      type: string
-      pattern: '^\d{4}-\d{2}-01$'
-      example: '2026-07-01'
     LocalDate:
       type: string
       format: date
+      pattern: '^\\d{4}-\\d{2}-\\d{2}$'
       example: '2026-07-23'
+    MonthDate:
+      type: string
+      format: date
+      pattern: '^\\d{4}-\\d{2}-01$'
+      example: '2026-07-01'
     MoneyString:
       type: string
-      pattern: '^-?\d+\.\d{2}$'
-      example: '1234.56'
+      pattern: '^-?\\d+\\.\\d{2}$'
+      example: '1250.00'
     PositiveMoneyString:
       type: string
-      pattern: '^\d+\.\d{2}$'
-      example: '1234.56'
+      pattern: '^(0|[1-9]\\d*)\\.\\d{2}$'
+      example: '500.00'
+    StrictPositiveMoneyString:
+      type: string
+      pattern: '^[1-9]\\d*\\.\\d{2}$|^0\\.[0-9][1-9]$|^0\\.[1-9][0-9]$'
+      example: '250.00'
     RateString:
       type: string
-      pattern: '^\d+\.\d{1,8}$'
-      example: '0.00850000'
+      pattern: '^\\d+\\.\\d{1,8}$'
+      example: '0.00750000'
     EntryStatus:
       type: string
       enum: [PLANNED, REALIZED, CANCELED]
     EntryKind:
       type: string
-      enum:
-        - SALARY_INSTALLMENT
-        - EXTRA_INCOME
-        - FIXED_EXPENSE_OCCURRENCE
-        - VARIABLE_EXPENSE
-        - INSTALLMENT_CHARGE
+      enum: [SALARY_INSTALLMENT, EXTRA_INCOME, FIXED_EXPENSE_OCCURRENCE, VARIABLE_EXPENSE, INSTALLMENT_CHARGE]
+    EntryDirection:
+      type: string
+      enum: [INFLOW, OUTFLOW]
     InvestmentMovementType:
       type: string
       enum: [CONTRIBUTION, YIELD, WITHDRAWAL, MANUAL_ADJUSTMENT]
+    AdjustmentTarget:
+      type: string
+      enum: [OPERATIONAL_BALANCE, INVESTMENT_BALANCE]
+    AdjustmentDirection:
+      type: string
+      enum: [INCREASE, DECREASE]
+    RecurrenceRuleStatus:
+      type: string
+      enum: [ACTIVE, INACTIVE]
+    InstallmentPlanStatus:
+      type: string
+      enum: [ACTIVE, CANCELED, COMPLETED]
+    InstallmentItemStatus:
+      type: string
+      enum: [OPEN, REALIZED, CANCELED]
+    StartDatePreviewRequest:
+      type: object
+      required: [newControlStartDate]
+      properties:
+        newControlStartDate:
+          $ref: '#/components/schemas/LocalDate'
+      additionalProperties: false
+      example:
+        newControlStartDate: '2026-02-01'
     FinancialSettings:
       type: object
+      required: [controlStartDate, monthlyNetSalary, firstSalaryInstallmentAmount, firstSalaryInstallmentDay, secondSalaryInstallmentAmount, secondSalaryInstallmentDateRule, defaultMonthlyContribution, projectedMonthlyInvestmentYieldRate, initialOperationalBalance, initialInvestmentBalance]
       properties:
-        id: { type: string, format: uuid }
         controlStartDate: { $ref: '#/components/schemas/LocalDate' }
         monthlyNetSalary: { $ref: '#/components/schemas/PositiveMoneyString' }
         firstSalaryInstallmentAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
         firstSalaryInstallmentDay: { type: integer, minimum: 1, maximum: 31 }
         secondSalaryInstallmentAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        secondSalaryInstallmentDateRule: { type: string, enum: [LAST_DAY_OF_MONTH] }
         defaultMonthlyContribution: { $ref: '#/components/schemas/PositiveMoneyString' }
         projectedMonthlyInvestmentYieldRate: { $ref: '#/components/schemas/RateString' }
-        initialOperationalBalance: { $ref: '#/components/schemas/MoneyString' }
-        initialInvestmentBalance: { $ref: '#/components/schemas/MoneyString' }
+        initialOperationalBalance: { $ref: '#/components/schemas/PositiveMoneyString' }
+        initialInvestmentBalance: { $ref: '#/components/schemas/PositiveMoneyString' }
     UpsertFinancialSettingsRequest:
       type: object
-      required:
-        - controlStartDate
-        - monthlyNetSalary
-        - firstSalaryInstallmentAmount
-        - firstSalaryInstallmentDay
-        - defaultMonthlyContribution
-        - projectedMonthlyInvestmentYieldRate
-        - initialOperationalBalance
-        - initialInvestmentBalance
+      required: [controlStartDate, monthlyNetSalary, firstSalaryInstallmentAmount, firstSalaryInstallmentDay, defaultMonthlyContribution, projectedMonthlyInvestmentYieldRate, initialOperationalBalance, initialInvestmentBalance]
       properties:
         controlStartDate: { $ref: '#/components/schemas/LocalDate' }
         monthlyNetSalary: { $ref: '#/components/schemas/PositiveMoneyString' }
@@ -583,72 +625,117 @@ components:
         firstSalaryInstallmentDay: { type: integer, minimum: 1, maximum: 31 }
         defaultMonthlyContribution: { $ref: '#/components/schemas/PositiveMoneyString' }
         projectedMonthlyInvestmentYieldRate: { $ref: '#/components/schemas/RateString' }
-        initialOperationalBalance: { $ref: '#/components/schemas/MoneyString' }
-        initialInvestmentBalance: { $ref: '#/components/schemas/MoneyString' }
+        initialOperationalBalance: { $ref: '#/components/schemas/PositiveMoneyString' }
+        initialInvestmentBalance: { $ref: '#/components/schemas/PositiveMoneyString' }
+      additionalProperties: false
+      example:
+        controlStartDate: '2026-01-01'
+        monthlyNetSalary: '8500.00'
+        firstSalaryInstallmentAmount: '3000.00'
+        firstSalaryInstallmentDay: 15
+        defaultMonthlyContribution: '1200.00'
+        projectedMonthlyInvestmentYieldRate: '0.00800000'
+        initialOperationalBalance: '2500.00'
+        initialInvestmentBalance: '10000.00'
     Category:
       type: object
+      required: [id, name, isActive]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
-        kind: { type: string, enum: [EXPENSE, INCOME] }
         isActive: { type: boolean }
+      description: Categoria utilizada exclusivamente para classificar despesas.
     CreateCategoryRequest:
       type: object
-      required: [name, kind]
+      required: [name]
       properties:
         name: { type: string, minLength: 1, maxLength: 120 }
-        kind: { type: string, enum: [EXPENSE, INCOME] }
+      additionalProperties: false
+      example:
+        name: Moradia
     UpdateCategoryRequest:
       type: object
       properties:
         name: { type: string, minLength: 1, maxLength: 120 }
         isActive: { type: boolean }
+      additionalProperties: false
     FinancialEntry:
       type: object
+      required: [id, kind, direction, status, description, competencyMonth, plannedDate, plannedAmount, origin]
       properties:
         id: { type: string, format: uuid }
         kind: { $ref: '#/components/schemas/EntryKind' }
+        direction: { $ref: '#/components/schemas/EntryDirection' }
         status: { $ref: '#/components/schemas/EntryStatus' }
         description: { type: string }
         categoryId: { type: string, format: uuid, nullable: true }
         competencyMonth: { $ref: '#/components/schemas/MonthDate' }
         plannedDate: { $ref: '#/components/schemas/LocalDate' }
         effectiveDate: { $ref: '#/components/schemas/LocalDate', nullable: true }
-        plannedAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
-        effectiveAmount: { $ref: '#/components/schemas/PositiveMoneyString', nullable: true }
-        origin: { type: string }
+        plannedAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString' }
+        effectiveAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString', nullable: true }
+        origin:
+          type: string
+          enum: [MANUAL, SYSTEM_SALARY, RECURRENCE_RULE, INSTALLMENT_PLAN, START_DATE_RECALCULATION]
+        recurrenceRuleId: { type: string, format: uuid, nullable: true }
+        installmentPlanId: { type: string, format: uuid, nullable: true }
+        installmentItemId: { type: string, format: uuid, nullable: true }
     CreateFinancialEntryRequest:
       type: object
       required: [kind, status, description, plannedDate, plannedAmount]
       properties:
-        kind: { $ref: '#/components/schemas/EntryKind' }
-        status: { $ref: '#/components/schemas/EntryStatus' }
+        kind:
+          type: string
+          enum: [EXTRA_INCOME, VARIABLE_EXPENSE]
+          description: Receitas salariais automáticas, recorrências e parcelas não são criadas por este endpoint.
+        status: { type: string, enum: [PLANNED, REALIZED] }
         description: { type: string, minLength: 1, maxLength: 255 }
-        categoryId: { type: string, format: uuid, nullable: true }
+        categoryId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Obrigatório para despesa variável e proibido para receita extra.
         plannedDate: { $ref: '#/components/schemas/LocalDate' }
         effectiveDate: { $ref: '#/components/schemas/LocalDate', nullable: true }
-        plannedAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
-        effectiveAmount: { $ref: '#/components/schemas/PositiveMoneyString', nullable: true }
+        plannedAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString' }
+        effectiveAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString', nullable: true }
         confirmDuplicate: { type: boolean, default: false }
+      additionalProperties: false
+      example:
+        kind: VARIABLE_EXPENSE
+        status: PLANNED
+        description: Conta de energia
+        categoryId: 2c2d69d9-f1c2-4d17-bfd0-cd47c18a3de1
+        plannedDate: '2026-07-10'
+        plannedAmount: '220.35'
+        confirmDuplicate: false
     UpdateFinancialEntryRequest:
       type: object
       properties:
-        status: { $ref: '#/components/schemas/EntryStatus' }
+        status: { type: string, enum: [PLANNED, REALIZED, CANCELED] }
         description: { type: string, maxLength: 255 }
         categoryId: { type: string, format: uuid, nullable: true }
         plannedDate: { $ref: '#/components/schemas/LocalDate' }
         effectiveDate: { $ref: '#/components/schemas/LocalDate', nullable: true }
-        plannedAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
-        effectiveAmount: { $ref: '#/components/schemas/PositiveMoneyString', nullable: true }
+        plannedAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString' }
+        effectiveAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString', nullable: true }
+      additionalProperties: false
     DuplicateCheckRequest:
       type: object
       required: [kind, plannedDate, plannedAmount, description]
       properties:
-        kind: { $ref: '#/components/schemas/EntryKind' }
+        kind: { type: string, enum: [EXTRA_INCOME, VARIABLE_EXPENSE] }
         plannedDate: { $ref: '#/components/schemas/LocalDate' }
-        plannedAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        plannedAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString' }
         description: { type: string }
         categoryId: { type: string, format: uuid, nullable: true }
+      additionalProperties: false
+      example:
+        kind: VARIABLE_EXPENSE
+        plannedDate: '2026-07-10'
+        plannedAmount: '220.35'
+        description: Conta de energia
+        categoryId: 2c2d69d9-f1c2-4d17-bfd0-cd47c18a3de1
     DuplicateCheckResponse:
       type: object
       properties:
@@ -665,54 +752,131 @@ components:
             code: { type: string, example: POSSIBLE_DUPLICATE }
     RecurrenceRule:
       type: object
+      required: [id, description, categoryId, defaultAmount, dueDay, startDate, status]
       properties:
         id: { type: string, format: uuid }
         description: { type: string }
         categoryId: { type: string, format: uuid }
-        defaultAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        defaultAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString' }
         dueDay: { type: integer, minimum: 1, maximum: 31 }
         startDate: { $ref: '#/components/schemas/LocalDate' }
         endDate: { $ref: '#/components/schemas/LocalDate', nullable: true }
-        status: { type: string, enum: [ACTIVE, INACTIVE] }
+        status: { $ref: '#/components/schemas/RecurrenceRuleStatus' }
     CreateRecurrenceRuleRequest:
-      allOf:
-        - $ref: '#/components/schemas/RecurrenceRule'
+      type: object
+      required: [description, categoryId, defaultAmount, dueDay, startDate]
+      properties:
+        description: { type: string, minLength: 1, maxLength: 255 }
+        categoryId: { type: string, format: uuid }
+        defaultAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString' }
+        dueDay: { type: integer, minimum: 1, maximum: 31 }
+        startDate: { $ref: '#/components/schemas/LocalDate' }
+        endDate: { $ref: '#/components/schemas/LocalDate', nullable: true }
+        status: { $ref: '#/components/schemas/RecurrenceRuleStatus' }
+      additionalProperties: false
+      example:
+        description: Aluguel
+        categoryId: 2c2d69d9-f1c2-4d17-bfd0-cd47c18a3de1
+        defaultAmount: '1800.00'
+        dueDay: 5
+        startDate: '2026-01-01'
+        status: ACTIVE
     UpdateRecurrenceRuleRequest:
       type: object
       properties:
-        description: { type: string }
+        description: { type: string, minLength: 1, maxLength: 255 }
         categoryId: { type: string, format: uuid }
-        defaultAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        defaultAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString' }
         dueDay: { type: integer, minimum: 1, maximum: 31 }
         endDate: { $ref: '#/components/schemas/LocalDate', nullable: true }
-        status: { type: string, enum: [ACTIVE, INACTIVE] }
+        status: { $ref: '#/components/schemas/RecurrenceRuleStatus' }
+      additionalProperties: false
     InstallmentPlan:
       type: object
+      required: [id, description, categoryId, totalAmount, installmentCount, installmentAmount, purchaseDate, firstInstallmentMonth, paymentMethod, status, remainingAmount]
       properties:
         id: { type: string, format: uuid }
         description: { type: string }
         categoryId: { type: string, format: uuid }
-        totalAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        totalAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString' }
         installmentCount: { type: integer, minimum: 1 }
-        installmentAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        installmentAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString' }
         purchaseDate: { $ref: '#/components/schemas/LocalDate' }
         firstInstallmentMonth: { $ref: '#/components/schemas/MonthDate' }
-        paymentMethod: { type: string }
-        status: { type: string, enum: [ACTIVE, CANCELED, COMPLETED] }
-        remainingAmount: { $ref: '#/components/schemas/MoneyString' }
+        paymentMethod: { type: string, maxLength: 80 }
+        status: { $ref: '#/components/schemas/InstallmentPlanStatus' }
+        remainingAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/InstallmentItem'
+    InstallmentItem:
+      type: object
+      required: [id, installmentNumber, competencyMonth, amount, status]
+      properties:
+        id: { type: string, format: uuid }
+        installmentNumber: { type: integer, minimum: 1 }
+        competencyMonth: { $ref: '#/components/schemas/MonthDate' }
+        amount: { $ref: '#/components/schemas/StrictPositiveMoneyString' }
+        status: { $ref: '#/components/schemas/InstallmentItemStatus' }
+        financialEntryId: { type: string, format: uuid, nullable: true }
     CreateInstallmentPlanRequest:
-      allOf:
-        - $ref: '#/components/schemas/InstallmentPlan'
+      type: object
+      required: [description, categoryId, totalAmount, installmentCount, installmentAmount, purchaseDate, firstInstallmentMonth, paymentMethod]
+      properties:
+        description: { type: string, minLength: 1, maxLength: 255 }
+        categoryId: { type: string, format: uuid }
+        totalAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString' }
+        installmentCount: { type: integer, minimum: 1 }
+        installmentAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString' }
+        purchaseDate: { $ref: '#/components/schemas/LocalDate' }
+        firstInstallmentMonth: { $ref: '#/components/schemas/MonthDate' }
+        paymentMethod: { type: string, minLength: 1, maxLength: 80 }
+        status:
+          type: string
+          enum: [ACTIVE, CANCELED]
+          description: Situação inicial permitida ao cliente.
+      additionalProperties: false
+      example:
+        description: Notebook para trabalho
+        categoryId: 2c2d69d9-f1c2-4d17-bfd0-cd47c18a3de1
+        totalAmount: '3600.00'
+        installmentCount: 12
+        installmentAmount: '300.00'
+        purchaseDate: '2026-03-18'
+        firstInstallmentMonth: '2026-04-01'
+        paymentMethod: Cartão de crédito
+        status: ACTIVE
     UpdateInstallmentPlanRequest:
       type: object
       properties:
-        description: { type: string }
+        description: { type: string, minLength: 1, maxLength: 255 }
         categoryId: { type: string, format: uuid }
         installmentCount: { type: integer, minimum: 1 }
-        installmentAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
-        paymentMethod: { type: string }
+        installmentAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString' }
+        paymentMethod: { type: string, minLength: 1, maxLength: 80 }
+      additionalProperties: false
+    InstallmentChangePreview:
+      type: object
+      properties:
+        affectedFutureInstallments: { type: integer }
+        preservedRealizedInstallments: { type: integer }
+        newRemainingAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        warnings:
+          type: array
+          items: { type: string }
+    InstallmentCancelPreview:
+      type: object
+      properties:
+        futureOpenInstallmentsToCancel: { type: integer }
+        preservedRealizedInstallments: { type: integer }
+        remainingAmountAfterCancel: { $ref: '#/components/schemas/PositiveMoneyString' }
+        warnings:
+          type: array
+          items: { type: string }
     InvestmentMovement:
       type: object
+      required: [id, movementType, status, competencyMonth, plannedDate, plannedAmount, description]
       properties:
         id: { type: string, format: uuid }
         movementType: { $ref: '#/components/schemas/InvestmentMovementType' }
@@ -720,44 +884,110 @@ components:
         competencyMonth: { $ref: '#/components/schemas/MonthDate' }
         plannedDate: { $ref: '#/components/schemas/LocalDate' }
         effectiveDate: { $ref: '#/components/schemas/LocalDate', nullable: true }
-        plannedAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
-        effectiveAmount: { $ref: '#/components/schemas/PositiveMoneyString', nullable: true }
-        adjustmentTarget:
-          type: string
-          enum: [OPERATIONAL_BALANCE, INVESTMENT_BALANCE]
-          nullable: true
+        plannedAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString' }
+        effectiveAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString', nullable: true }
+        adjustmentTarget: { $ref: '#/components/schemas/AdjustmentTarget', nullable: true }
+        adjustmentDirection: { $ref: '#/components/schemas/AdjustmentDirection', nullable: true }
         description: { type: string }
     CreateInvestmentMovementRequest:
+      type: object
+      required: [movementType, status, plannedDate, plannedAmount, description]
+      properties:
+        movementType: { $ref: '#/components/schemas/InvestmentMovementType' }
+        status: { type: string, enum: [PLANNED, REALIZED] }
+        plannedDate: { $ref: '#/components/schemas/LocalDate' }
+        effectiveDate: { $ref: '#/components/schemas/LocalDate', nullable: true }
+        plannedAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString' }
+        effectiveAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString', nullable: true }
+        adjustmentTarget: { $ref: '#/components/schemas/AdjustmentTarget', nullable: true }
+        adjustmentDirection: { $ref: '#/components/schemas/AdjustmentDirection', nullable: true }
+        description: { type: string, minLength: 1, maxLength: 255 }
+      additionalProperties: false
       allOf:
-        - $ref: '#/components/schemas/InvestmentMovement'
+        - if:
+            properties:
+              movementType:
+                const: MANUAL_ADJUSTMENT
+          then:
+            required: [adjustmentTarget, adjustmentDirection]
+      example:
+        movementType: MANUAL_ADJUSTMENT
+        status: REALIZED
+        plannedDate: '2026-07-23'
+        effectiveDate: '2026-07-23'
+        plannedAmount: '150.00'
+        effectiveAmount: '150.00'
+        adjustmentTarget: OPERATIONAL_BALANCE
+        adjustmentDirection: INCREASE
+        description: Correção de saldo operacional
     UpdateInvestmentMovementRequest:
       type: object
       properties:
-        status: { $ref: '#/components/schemas/EntryStatus' }
+        status: { type: string, enum: [PLANNED, REALIZED, CANCELED] }
+        plannedDate: { $ref: '#/components/schemas/LocalDate' }
         effectiveDate: { $ref: '#/components/schemas/LocalDate', nullable: true }
-        effectiveAmount: { $ref: '#/components/schemas/PositiveMoneyString', nullable: true }
-        adjustmentTarget:
-          type: string
-          enum: [OPERATIONAL_BALANCE, INVESTMENT_BALANCE]
-          nullable: true
-        description: { type: string }
+        plannedAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString' }
+        effectiveAmount: { $ref: '#/components/schemas/StrictPositiveMoneyString', nullable: true }
+        adjustmentTarget: { $ref: '#/components/schemas/AdjustmentTarget', nullable: true }
+        adjustmentDirection: { $ref: '#/components/schemas/AdjustmentDirection', nullable: true }
+        description: { type: string, minLength: 1, maxLength: 255 }
+      additionalProperties: false
+    SalaryInstallmentOverview:
+      type: object
+      required: [installmentLabel, plannedDate, plannedAmount]
+      properties:
+        installmentLabel: { type: string, enum: [FIRST_INSTALLMENT, SECOND_INSTALLMENT] }
+        plannedDate: { $ref: '#/components/schemas/LocalDate' }
+        plannedAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
     MonthlyOverview:
       type: object
+      required: [month, withinControlPeriod, openingOperationalBalance, openingInvestmentBalance, plannedSalaryInstallments, plannedIncome, realizedIncome, plannedFixedExpenses, realizedExpenses, variableExpenses, installments, contributions, yields, operationalBalance, investmentBalance, plannedVsRealizedDelta]
       properties:
         month: { $ref: '#/components/schemas/MonthDate' }
-        plannedIncome: { $ref: '#/components/schemas/MoneyString' }
-        realizedIncome: { $ref: '#/components/schemas/MoneyString' }
-        plannedFixedExpenses: { $ref: '#/components/schemas/MoneyString' }
-        realizedExpenses: { $ref: '#/components/schemas/MoneyString' }
-        variableExpenses: { $ref: '#/components/schemas/MoneyString' }
-        installments: { $ref: '#/components/schemas/MoneyString' }
-        contributions: { $ref: '#/components/schemas/MoneyString' }
-        yields: { $ref: '#/components/schemas/MoneyString' }
+        withinControlPeriod: { type: boolean }
+        openingOperationalBalance: { $ref: '#/components/schemas/MoneyString' }
+        openingInvestmentBalance: { $ref: '#/components/schemas/PositiveMoneyString' }
+        plannedSalaryInstallments:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalaryInstallmentOverview'
+        plannedIncome: { $ref: '#/components/schemas/PositiveMoneyString' }
+        realizedIncome: { $ref: '#/components/schemas/PositiveMoneyString' }
+        plannedFixedExpenses: { $ref: '#/components/schemas/PositiveMoneyString' }
+        realizedExpenses: { $ref: '#/components/schemas/PositiveMoneyString' }
+        variableExpenses: { $ref: '#/components/schemas/PositiveMoneyString' }
+        installments: { $ref: '#/components/schemas/PositiveMoneyString' }
+        contributions: { $ref: '#/components/schemas/PositiveMoneyString' }
+        yields: { $ref: '#/components/schemas/PositiveMoneyString' }
         operationalBalance: { $ref: '#/components/schemas/MoneyString' }
-        investmentBalance: { $ref: '#/components/schemas/MoneyString' }
+        investmentBalance: { $ref: '#/components/schemas/PositiveMoneyString' }
         plannedVsRealizedDelta: { $ref: '#/components/schemas/MoneyString' }
+      example:
+        month: '2026-07-01'
+        withinControlPeriod: true
+        openingOperationalBalance: '2500.00'
+        openingInvestmentBalance: '10000.00'
+        plannedSalaryInstallments:
+          - installmentLabel: FIRST_INSTALLMENT
+            plannedDate: '2026-07-15'
+            plannedAmount: '3000.00'
+          - installmentLabel: SECOND_INSTALLMENT
+            plannedDate: '2026-07-31'
+            plannedAmount: '5500.00'
+        plannedIncome: '8500.00'
+        realizedIncome: '3000.00'
+        plannedFixedExpenses: '1800.00'
+        realizedExpenses: '420.35'
+        variableExpenses: '420.35'
+        installments: '300.00'
+        contributions: '1200.00'
+        yields: '85.50'
+        operationalBalance: '4080.15'
+        investmentBalance: '11285.50'
+        plannedVsRealizedDelta: '5080.15'
     MonthlyBreakdown:
       type: object
+      required: [metric, month, items]
       properties:
         metric: { type: string }
         month: { $ref: '#/components/schemas/MonthDate' }
@@ -769,41 +999,46 @@ components:
               - $ref: '#/components/schemas/InvestmentMovement'
     DashboardResponse:
       type: object
+      required: [currentInvestmentPatrimony, monthlyContribution, monthlyIncome, monthlyExpenses, operationalBalance, investmentEvolution, expensesByCategory, plannedVsRealized]
       properties:
-        currentInvestmentPatrimony: { $ref: '#/components/schemas/MoneyString' }
-        monthlyContribution: { $ref: '#/components/schemas/MoneyString' }
-        monthlyIncome: { $ref: '#/components/schemas/MoneyString' }
-        monthlyExpenses: { $ref: '#/components/schemas/MoneyString' }
+        currentInvestmentPatrimony: { $ref: '#/components/schemas/PositiveMoneyString' }
+        monthlyContribution: { $ref: '#/components/schemas/PositiveMoneyString' }
+        monthlyIncome: { $ref: '#/components/schemas/PositiveMoneyString' }
+        monthlyExpenses: { $ref: '#/components/schemas/PositiveMoneyString' }
         operationalBalance: { $ref: '#/components/schemas/MoneyString' }
         investmentEvolution:
           type: array
           items:
             type: object
+            required: [month, value]
             properties:
               month: { $ref: '#/components/schemas/MonthDate' }
-              value: { $ref: '#/components/schemas/MoneyString' }
+              value: { $ref: '#/components/schemas/PositiveMoneyString' }
         expensesByCategory:
           type: array
           items:
             type: object
+            required: [categoryName, value]
             properties:
               categoryName: { type: string }
-              value: { $ref: '#/components/schemas/MoneyString' }
+              value: { $ref: '#/components/schemas/PositiveMoneyString' }
         plannedVsRealized:
           type: array
           items:
             type: object
+            required: [month, planned, realized]
             properties:
               month: { $ref: '#/components/schemas/MonthDate' }
-              planned: { $ref: '#/components/schemas/MoneyString' }
-              realized: { $ref: '#/components/schemas/MoneyString' }
+              planned: { $ref: '#/components/schemas/PositiveMoneyString' }
+              realized: { $ref: '#/components/schemas/PositiveMoneyString' }
     AuditEvent:
       type: object
+      required: [id, entityName, entityId, operation, changeOrigin, occurredAt]
       properties:
         id: { type: string, format: uuid }
         entityName: { type: string }
         entityId: { type: string, format: uuid }
-        operation: { type: string }
+        operation: { type: string, enum: [CREATE, UPDATE, CANCEL, REALIZE, RECALCULATE, MATERIALIZE] }
         beforeSnapshot:
           type: object
           additionalProperties: true
@@ -812,7 +1047,7 @@ components:
           type: object
           additionalProperties: true
           nullable: true
-        changeOrigin: { type: string, example: local-user }
+        changeOrigin: { type: string, enum: [local-user, system] }
         occurredAt: { type: string, format: date-time }
     ChangeImpactPreview:
       type: object
@@ -820,11 +1055,10 @@ components:
         summary: { type: string }
         affectedMonths:
           type: array
-          items:
-            $ref: '#/components/schemas/MonthDate'
+          items: { $ref: '#/components/schemas/MonthDate' }
         affectedOpenInstallments: { type: integer }
         affectedRealizedEntries: { type: integer }
         warnings:
           type: array
-          items:
-            type: string
+          items: { type: string }
+
