@@ -1,4 +1,4 @@
-﻿# Feature Specification: Núcleo de Controle Financeiro Pessoal
+# Feature Specification: Núcleo de Controle Financeiro Pessoal
 
 **Feature Branch**: `001-nucleo-controle-financeiro`
 
@@ -7,6 +7,15 @@
 **Status**: Draft
 
 **Input**: User description: "Migrar o núcleo da planilha de controle financeiro pessoal para uma aplicação web, cobrindo configurações financeiras, categorias, receitas, despesas, parcelamentos, aportes, investimentos, consolidação mensal, dashboard inicial, rastreabilidade e estados de correção, sem importar dados reais nem definir tecnologia nesta etapa."
+## Clarifications
+
+### Session 2026-07-23
+
+- Q: Quando a data inicial do controle for alterada, o sistema deve recalcular livremente períodos anteriores ou bloquear a mudança quando já existirem lançamentos realizados antes da nova data? → A: Permitir alterar a data inicial apenas se não existirem lançamentos realizados antes da nova data; caso existam, bloquear a alteração e orientar o usuário a ajustar ou remover esses lançamentos primeiro.
+- Q: Como deve funcionar a divisão e o arredondamento das duas parcelas do salário? → A: A primeira parcela mantém exatamente o valor informado pelo usuário; a segunda parcela é calculada como salário líquido total menos a primeira parcela, absorvendo qualquer centavo residual segundo a escala monetária do sistema.
+- Q: Qual é a diferença funcional entre um lançamento planejado e um realizado? → A: Planejado e realizado são estados do mesmo lançamento; ao realizar, o sistema atualiza o status e registra a data e o valor efetivos sem criar um segundo lançamento.
+- Q: Em que momento do mês o rendimento dos investimentos deve ser aplicado? → A: O rendimento mensal é aplicado no fechamento do mês, sobre o saldo de investimentos após considerar os aportes, resgates e ajustes registrados no próprio mês.
+- Q: Qual é o efeito de aportes, resgates e ajustes no saldo operacional e no patrimônio? → A: Aporte reduz saldo operacional e aumenta investimentos; resgate aumenta saldo operacional e reduz investimentos; ajuste manual deve ser classificado explicitamente como ajuste do saldo operacional ou dos investimentos, afetando apenas o saldo escolhido.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -20,9 +29,10 @@ Como usuário, quero definir minhas configurações financeiras e categorias par
 
 **Acceptance Scenarios**:
 
-1. **Given** que o usuário informa data de início do controle, salário líquido mensal, valor da primeira parcela, dia da primeira parcela, aporte mensal padrão, rendimento projetado e saldos iniciais, **When** salva as configurações, **Then** o sistema registra esses parâmetros e calcula a segunda parcela do salário como o restante do salário líquido com recebimento no último dia do mês.
+1. **Given** que o usuário informa data de início do controle, salário líquido mensal, valor da primeira parcela, dia da primeira parcela, aporte mensal padrão, rendimento projetado e saldos iniciais, **When** salva as configurações, **Then** o sistema registra esses parâmetros, preserva a primeira parcela exatamente como informada e calcula a segunda parcela como o restante do salário líquido com recebimento no último dia do mês.
 2. **Given** que existem meses anteriores à data de início configurada, **When** o usuário acessa esses meses no sistema, **Then** eles não exibem receitas automáticas, despesas recorrentes automáticas, aportes automáticos nem evolução patrimonial gerada antes da data inicial.
 3. **Given** que o usuário cadastra uma categoria e depois a desativa, **When** consulta lançamentos históricos que usam essa categoria, **Then** o sistema preserva o histórico, impede exclusão destrutiva e sinaliza a categoria como inativa para novos usos.
+4. **Given** que o usuário tenta alterar a data de início do controle para uma data posterior à existência de lançamentos já realizados, **When** confirma a alteração, **Then** o sistema bloqueia a mudança e orienta o usuário a ajustar ou remover primeiro os lançamentos realizados anteriores à nova data proposta.
 
 ---
 
@@ -38,7 +48,7 @@ Como usuário, quero registrar receitas, despesas fixas e despesas variáveis co
 
 1. **Given** que o usuário possui configurações financeiras ativas, **When** acessa um mês iniciado após a data de início do controle, **Then** o sistema apresenta as parcelas automáticas de salário previstas para aquele mês sem duplicar registros.
 2. **Given** que o usuário cadastra uma despesa fixa recorrente com valor, categoria, dia de vencimento, data inicial e status ativa, **When** visualiza os meses cobertos pelo período da recorrência, **Then** o sistema gera previsões mensais únicas para essa despesa até a data final, quando houver.
-3. **Given** que o usuário registra receitas extras, despesas variáveis e altera o status de planejado para realizado, **When** consulta a consolidação do mês, **Then** o sistema diferencia claramente valores previstos e realizados e recalcula os totais mensais correspondentes.
+3. **Given** que o usuário registra receitas extras, despesas variáveis e altera o status de planejado para realizado, **When** consulta a consolidação do mês, **Then** o sistema diferencia claramente valores previstos e realizados, atualiza o mesmo lançamento com a data e o valor efetivos da realização e recalcula os totais mensais correspondentes sem duplicar o evento financeiro.
 4. **Given** que existe uma receita prevista após a data esperada de recebimento ou uma despesa prevista após a data de vencimento sem baixa, **When** o mês é consultado, **Then** o sistema sinaliza os estados de receita atrasada e despesa vencida sem convertê-las automaticamente em realizadas.
 
 ---
@@ -55,7 +65,7 @@ Como usuário, quero registrar compras parceladas, aportes e outros movimentos d
 
 1. **Given** que o usuário cadastra uma compra parcelada uma única vez com total, quantidade de parcelas, valor da parcela e mês da primeira cobrança, **When** salva o parcelamento, **Then** o sistema identifica automaticamente os meses de cobrança, a numeração de cada parcela, a data da última parcela, o total comprometido por mês e o saldo remanescente do parcelamento.
 2. **Given** que o usuário registra um aporte mensal ou manual, **When** o lançamento é confirmado, **Then** o sistema reduz o saldo operacional, aumenta o saldo de investimentos e registra o movimento como aporte auditável, sem classificá-lo como despesa.
-3. **Given** que o usuário registra rendimento, resgate ou ajuste manual, **When** consulta a movimentação de investimentos, **Then** o sistema distingue esses tipos de lançamento e atualiza separadamente saldo operacional e saldo de investimentos conforme a natureza do movimento.
+3. **Given** que o usuário registra rendimento, resgate ou ajuste manual, **When** consulta a movimentação de investimentos, **Then** o sistema distingue esses tipos de lançamento, aplica o rendimento mensal no fechamento do mês sobre o saldo investido já ajustado pelos movimentos do próprio mês, aumenta o saldo operacional e reduz os investimentos em caso de resgate, e faz o ajuste manual afetar apenas o saldo explicitamente escolhido pelo usuário.
 4. **Given** que um parcelamento possui parcelas já realizadas, **When** o usuário cancela ou altera o parcelamento, **Then** o sistema preserva o histórico realizado, atualiza apenas as parcelas futuras elegíveis e exige confirmação explícita antes de qualquer alteração com impacto retroativo.
 
 ---
@@ -77,9 +87,11 @@ Como usuário, quero visualizar um dashboard inicial e abrir os totais consolida
 ### Edge Cases
 
 - Mês sem movimentações deve permanecer acessível e exibir totais zerados ou saldos herdados, sem criar lançamentos artificiais além das previsões automáticas válidas após a data de início.
+- O rendimento mensal de investimentos deve ser calculado somente no fechamento do mês, após considerar os movimentos de investimento ocorridos no próprio período.
 - Despesa vencida deve permanecer prevista e sinalizada como vencida até que seja quitada, editada ou cancelada com justificativa compatível.
 - Receita atrasada deve permanecer prevista e sinalizada como atrasada até recebimento, remarcação ou cancelamento explícito.
 - Lançamento futuro deve ser permitido como planejado, mas não pode ser tratado como realizado antes da data efetiva.
+- A mudança de planejado para realizado deve atualizar o mesmo lançamento, preservando rastreabilidade do estado anterior e sem criar duplicidade contábil.
 - Categoria desativada deve continuar visível em registros históricos e indisponível para novos cadastros comuns.
 - Parcelamento cancelado não pode apagar silenciosamente parcelas realizadas; parcelas futuras devem refletir o cancelamento conforme a regra aplicada.
 - Valores negativos só são aceitos quando compatíveis com o tipo de movimento; em casos inválidos, o sistema deve bloquear o lançamento com mensagem clara.
@@ -87,6 +99,7 @@ Como usuário, quero visualizar um dashboard inicial e abrir os totais consolida
 - Edição de lançamento já realizado deve manter trilha de auditoria do valor anterior e do novo valor.
 - Saldo operacional negativo deve ser permitido e claramente sinalizado como estado de caixa insuficiente.
 - Alteração de configurações com impacto em meses anteriores deve exibir prévia do efeito e exigir confirmação explícita antes de recalcular períodos afetados.
+- Alteração da data inicial do controle deve ser bloqueada quando houver lançamentos realizados anteriores à nova data proposta.
 - Despesa fixa não pode gerar previsões duplicadas para o mesmo mês e a mesma origem recorrente.
 
 ## Requirements *(mandatory)*
@@ -95,23 +108,35 @@ Como usuário, quero visualizar um dashboard inicial e abrir os totais consolida
 
 - **FR-001**: O sistema MUST permitir cadastrar e editar uma configuração financeira base contendo data de início do controle, salário líquido mensal, valor da primeira parcela salarial, dia de recebimento da primeira parcela, aporte mensal padrão, rendimento mensal projetado, saldo inicial operacional e saldo inicial de investimentos.
 - **FR-002**: O sistema MUST calcular a segunda parcela salarial como a diferença entre o salário líquido mensal e a primeira parcela informada.
+- **FR-002A**: O sistema MUST preservar exatamente o valor informado para a primeira parcela salarial, sem redistribuir centavos de arredondamento para essa parcela.
+- **FR-002B**: O sistema MUST aplicar qualquer centavo residual de arredondamento à segunda parcela salarial para garantir que a soma das duas parcelas seja exatamente igual ao salário líquido mensal.
 - **FR-003**: O sistema MUST registrar a data de recebimento da segunda parcela salarial como o último dia do respectivo mês.
 - **FR-004**: O sistema MUST impedir a geração automática de receitas, despesas recorrentes, aportes ou patrimônio em meses anteriores à data de início do controle.
+- **FR-004A**: O sistema MUST permitir alterar a data de início do controle somente quando não existirem lançamentos realizados anteriores à nova data informada.
+- **FR-004B**: O sistema MUST bloquear a alteração da data de início do controle quando existirem lançamentos realizados anteriores à nova data proposta e orientar o usuário a ajustar ou remover esses lançamentos antes de tentar novamente.
 - **FR-005**: O sistema MUST permitir cadastrar, editar, desativar e listar categorias utilizadas para classificar despesas e outros lançamentos pertinentes.
 - **FR-006**: O sistema MUST preservar o histórico de categorias já utilizadas em registros existentes e impedir exclusão destrutiva que comprometa rastreabilidade histórica.
 - **FR-007**: O sistema MUST permitir registrar receitas automáticas de salário e receitas extras com data de recebimento, descrição genérica, categoria ou tipo, valor e status planejado ou realizado.
+- **FR-007A**: Quando um lançamento de receita passar de planejado para realizado, o sistema MUST atualizar o mesmo lançamento com a data e o valor efetivamente recebidos, sem criar um segundo lançamento para o mesmo evento financeiro.
 - **FR-008**: O sistema MUST diferenciar visual e numericamente receitas previstas de receitas efetivamente recebidas.
+- **FR-008A**: O sistema MUST manter histórico auditável das mudanças de status entre planejado e realizado, incluindo o estado anterior, o estado novo, a data efetiva e o valor efetivo registrado.
 - **FR-009**: O sistema MUST permitir cadastrar despesas fixas recorrentes com descrição genérica, categoria, valor padrão, dia de vencimento, data inicial, data final opcional e status ativa ou inativa.
 - **FR-010**: O sistema MUST gerar no máximo uma previsão mensal por despesa fixa recorrente para cada mês elegível dentro de seu período de vigência.
 - **FR-011**: O sistema MUST permitir registrar despesas variáveis individuais com data, descrição genérica, categoria, valor e status planejado ou realizado.
+- **FR-011A**: Quando uma despesa planejada for realizada, o sistema MUST atualizar o mesmo lançamento com os dados efetivos da realização, sem duplicar a despesa na consolidação do mês.
 - **FR-012**: O sistema MUST permitir registrar uma compra parcelada uma única vez com descrição genérica, categoria, valor total, quantidade de parcelas, valor da parcela, data da compra, mês da primeira parcela, forma de pagamento e status.
 - **FR-013**: O sistema MUST calcular automaticamente, para cada parcelamento, os meses de cobrança, o número atual de cada parcela, a data da última parcela, o valor total comprometido por mês e o saldo restante do parcelamento.
 - **FR-014**: O sistema MUST preservar parcelas já realizadas quando um parcelamento for alterado ou cancelado, evitando exclusão silenciosa do histórico.
 - **FR-015**: O sistema MUST registrar aportes mensais e manuais como movimentos auditáveis que reduzem o saldo operacional e aumentam o saldo de investimentos sem classificá-los como despesa.
+- **FR-015A**: O sistema MUST tratar cada aporte como transferência entre saldo operacional e investimentos, sem alterar artificialmente o patrimônio investido por outro motivo que não o próprio movimento registrado.
 - **FR-016**: O sistema MUST permitir registrar rendimentos, resgates e ajustes manuais como lançamentos distintos de aportes.
+- **FR-016A**: O sistema MUST aplicar o rendimento mensal dos investimentos no fechamento do mês, considerando como base o saldo de investimentos após os aportes, resgates e ajustes registrados no próprio mês.
+- **FR-016B**: O sistema MUST tratar o resgate como movimento que aumenta o saldo operacional e reduz o saldo de investimentos no mesmo valor registrado.
+- **FR-016C**: O sistema MUST exigir que todo ajuste manual seja classificado explicitamente como ajuste de saldo operacional ou ajuste de investimentos, afetando somente o saldo selecionado pelo usuário.
 - **FR-017**: O sistema MUST tratar o saldo da conta corrente como saldo operacional para fins de fluxo de caixa.
 - **FR-018**: O sistema MUST tratar o patrimônio principal exibido ao usuário como patrimônio em investimentos, sem somar automaticamente o saldo operacional aos indicadores patrimoniais principais.
 - **FR-019**: O sistema MUST consolidar por mês receitas previstas, receitas realizadas, despesas fixas previstas, despesas realizadas, despesas variáveis, parcelas, aportes, rendimentos, saldo operacional, saldo de investimentos e diferença entre previsto e realizado.
+- **FR-019A**: Na consolidação mensal, o sistema MUST registrar o rendimento como movimento distinto aplicado no fechamento do mês e refletir seu efeito apenas após o processamento dos demais movimentos de investimento do período.
 - **FR-020**: O sistema MUST iniciar os cálculos de consolidação somente a partir da data configurada como início do controle.
 - **FR-021**: O sistema MUST exibir um dashboard inicial com patrimônio atual em investimentos, aporte realizado no mês, receitas do mês, despesas do mês, saldo operacional, evolução mensal dos investimentos, distribuição de despesas por categoria e comparação entre valores previstos e realizados.
 - **FR-022**: O sistema MUST apresentar gráficos com títulos, legendas, tooltips, valores monetários formatados, distinção entre previsto e realizado e quantidade de séries compatível com leitura clara.
@@ -122,11 +147,12 @@ Como usuário, quero visualizar um dashboard inicial e abrir os totais consolida
 - **FR-027**: O sistema MUST alertar sobre potencial duplicidade antes de confirmar um novo lançamento quando houver coincidência relevante de tipo, data, valor e descrição genérica.
 - **FR-028**: O sistema MUST manter trilha de auditoria para edição de lançamentos já realizados, alterações relevantes em parcelamentos e ajustes de configuração com efeito retroativo.
 - **FR-029**: O sistema MUST apresentar prévia e solicitar confirmação explícita antes de aplicar alterações de configuração que afetem meses já consolidados.
+- **FR-029A**: Quando a alteração de configuração envolver a data de início do controle e não houver bloqueio por lançamentos realizados anteriores, o sistema MUST recalcular apenas as movimentações automáticas e consolidações afetadas a partir da nova data inicial.
 - **FR-030**: O sistema MUST limitar o escopo desta feature ao controle financeiro principal, excluindo simulador de cenários, simulação de compras ou receitas, controle detalhado por ativo financeiro, integrações bancárias, múltiplos usuários, autenticação, aplicativo mobile nativo e importação definitiva dos dados reais da planilha.
 
 ### Constitutional Alignment *(mandatory)*
 
-- **Financial Rules**: Todos os valores monetários desta feature devem usar representação decimal exata, regras explícitas de arredondamento por contexto e rastreabilidade integral do cálculo mensal, de parcelamentos e de movimentos de investimento até seus lançamentos de origem.
+- **Financial Rules**: Todos os valores monetários desta feature devem usar representação decimal exata, regras explícitas de arredondamento por contexto e rastreabilidade integral do cálculo mensal, de parcelamentos e de movimentos de investimento até seus lançamentos de origem. No salário automático, a primeira parcela mantém exatamente o valor informado e a segunda absorve o eventual resíduo de arredondamento. Nos investimentos, o rendimento mensal é apurado no fechamento do mês após os movimentos do próprio período.
 - **Privacy & Security**: A especificação não reutiliza dados reais da planilha; descrições, exemplos e critérios de aceitação usam conteúdo genérico. Entradas devem ser validadas tanto no cliente quanto no servidor, e artefatos com dados reais devem permanecer fora do controle de versão.
 - **Architecture Boundaries**: A lógica de cálculo de salário, recorrência, parcelamento, saldos e consolidação deve permanecer em módulos de domínio dedicados; interfaces de entrada, telas e rotas só podem orquestrar e apresentar resultados.
 - **Database Impact**: A feature exigirá persistência versionada para configurações, categorias, lançamentos, parcelamentos, movimentos de investimento, trilhas de auditoria e consolidações derivadas. Alterações relevantes devem preservar histórico e usar transações quando afetarem múltiplos registros financeiros relacionados.
@@ -141,7 +167,7 @@ Como usuário, quero visualizar um dashboard inicial e abrir os totais consolida
 - **Despesa Variável**: Lançamento individual de saída com data, descrição genérica, categoria, valor e status.
 - **Parcelamento**: Compra parcelada registrada uma vez, com valor total, quantidade de parcelas, cronograma, forma de pagamento, status e saldo restante.
 - **Parcela Mensal**: Ocorrência mensal derivada de um parcelamento, com mês de cobrança, número da parcela, valor e estado.
-- **Movimento de Investimento**: Registro financeiro classificado como aporte, rendimento, resgate ou ajuste manual, com impacto definido em saldo operacional e saldo investido.
+- **Movimento de Investimento**: Registro financeiro classificado como aporte, rendimento, resgate ou ajuste manual, com impacto definido em saldo operacional e saldo investido, incluindo o momento de competência no fechamento mensal para rendimentos e a indicação explícita do saldo afetado nos ajustes manuais.
 - **Consolidação Mensal**: Visão agregada por mês contendo totais previstos, realizados, saldos, diferenças e estados relevantes.
 - **Trilha de Auditoria**: Registro de alterações e origem dos cálculos usados para explicar totais consolidados e mudanças em lançamentos sensíveis.
 
@@ -161,8 +187,12 @@ Como usuário, quero visualizar um dashboard inicial e abrir os totais consolida
 - A primeira versão atende um único usuário pessoal, sem autenticação e sem compartilhamento de dados com terceiros.
 - O sistema trabalha com uma única moeda base por controle financeiro.
 - O controle mensal segue meses de calendário e calcula a segunda parcela salarial no último dia de cada mês.
-- Receitas e despesas podem existir como planejadas antes de serem realizadas, e a mudança de status não cria um novo lançamento independente quando se tratar do mesmo evento financeiro.
+- A primeira parcela salarial é a referência fixa informada pelo usuário; a segunda funciona como parcela de fechamento para garantir a soma exata do salário líquido mensal.
+- O rendimento mensal projetado ou apurado é reconhecido no fechamento de cada mês, após os demais movimentos de investimento do período.
+- Ajustes manuais devem declarar explicitamente se corrigem o saldo operacional ou o saldo de investimentos, sem alterar ambos ao mesmo tempo por padrão.
+- Receitas e despesas podem existir como planejadas antes de serem realizadas, e a mudança de status atualiza o mesmo lançamento com os dados efetivos sem criar um novo lançamento independente para o mesmo evento financeiro.
 - Alterações retroativas em configurações, parcelamentos ou lançamentos sensíveis exigem confirmação explícita e preservação de histórico, mas a interface exata dessa confirmação será definida no planejamento.
+- A data de início do controle não pode ser movida para depois de um lançamento já realizado sem que esse lançamento seja previamente ajustado ou removido pelo usuário.
 - A detecção de duplicidade atua como alerta preventivo e não como bloqueio absoluto quando o usuário confirmar que os lançamentos são distintos.
 - A consolidação anual existente na planilha serve apenas como referência de negócio; esta especificação cobre consolidação mensal e dashboard inicial.
 - Funcionalidades explicitamente fora de escopo permanecem excluídas mesmo que existam referências correlatas na planilha atual.
