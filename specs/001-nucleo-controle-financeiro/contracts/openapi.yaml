@@ -1,0 +1,830 @@
+﻿openapi: 3.1.0
+info:
+  title: Sistema Financeiro Pessoal API
+  version: 0.1.0
+  description: >-
+    Contrato inicial da feature 001-nucleo-controle-financeiro. Define os fluxos
+    principais sem representar implementação pronta.
+servers:
+  - url: http://localhost:3333
+    description: Ambiente local planejado
+paths:
+  /v1/financial-settings:
+    get:
+      summary: Obter configuração financeira ativa
+      tags: [Financial Settings]
+      responses:
+        '200':
+          description: Configuração financeira atual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialSettings'
+    put:
+      summary: Criar ou substituir configuração financeira ativa
+      tags: [Financial Settings]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertFinancialSettingsRequest'
+      responses:
+        '200':
+          description: Configuração atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialSettings'
+  /v1/financial-settings/start-date-preview:
+    post:
+      summary: Visualizar impacto da alteração da data inicial
+      tags: [Financial Settings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [newControlStartDate]
+              properties:
+                newControlStartDate:
+                  $ref: '#/components/schemas/LocalDate'
+      responses:
+        '200':
+          description: Preview da alteração
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeImpactPreview'
+  /v1/categories:
+    get:
+      summary: Listar categorias
+      tags: [Categories]
+      responses:
+        '200':
+          description: Lista de categorias
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+    post:
+      summary: Criar categoria
+      tags: [Categories]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryRequest'
+      responses:
+        '201':
+          description: Categoria criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+  /v1/categories/{categoryId}:
+    patch:
+      summary: Editar ou desativar categoria
+      tags: [Categories]
+      parameters:
+        - $ref: '#/components/parameters/CategoryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCategoryRequest'
+      responses:
+        '200':
+          description: Categoria atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+  /v1/entries:
+    get:
+      summary: Listar lançamentos financeiros
+      tags: [Entries]
+      parameters:
+        - $ref: '#/components/parameters/MonthQuery'
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/EntryStatus'
+        - in: query
+          name: kind
+          schema:
+            $ref: '#/components/schemas/EntryKind'
+      responses:
+        '200':
+          description: Lista de lançamentos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FinancialEntry'
+    post:
+      summary: Criar lançamento manual de receita ou despesa
+      tags: [Entries]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFinancialEntryRequest'
+      responses:
+        '201':
+          description: Lançamento criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialEntry'
+        '409':
+          description: Possível duplicidade detectada; cliente pode confirmar explicitamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DuplicateWarningResponse'
+  /v1/entries/duplicate-check:
+    post:
+      summary: Verificar possível duplicidade antes de criar lançamento
+      tags: [Entries]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DuplicateCheckRequest'
+      responses:
+        '200':
+          description: Resultado da verificação
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DuplicateCheckResponse'
+  /v1/entries/{entryId}:
+    patch:
+      summary: Atualizar lançamento ou mudar status planejado-realizado
+      tags: [Entries]
+      parameters:
+        - $ref: '#/components/parameters/EntryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFinancialEntryRequest'
+      responses:
+        '200':
+          description: Lançamento atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialEntry'
+  /v1/recurrence-rules:
+    get:
+      summary: Listar regras de recorrência
+      tags: [Recurrence Rules]
+      responses:
+        '200':
+          description: Lista de regras
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecurrenceRule'
+    post:
+      summary: Criar despesa fixa recorrente
+      tags: [Recurrence Rules]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRecurrenceRuleRequest'
+      responses:
+        '201':
+          description: Regra criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurrenceRule'
+  /v1/recurrence-rules/{ruleId}:
+    patch:
+      summary: Editar ou inativar regra de recorrência
+      tags: [Recurrence Rules]
+      parameters:
+        - $ref: '#/components/parameters/RuleId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRecurrenceRuleRequest'
+      responses:
+        '200':
+          description: Regra atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurrenceRule'
+  /v1/installment-plans:
+    get:
+      summary: Listar parcelamentos
+      tags: [Installment Plans]
+      responses:
+        '200':
+          description: Lista de parcelamentos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InstallmentPlan'
+    post:
+      summary: Criar parcelamento
+      tags: [Installment Plans]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInstallmentPlanRequest'
+      responses:
+        '201':
+          description: Parcelamento criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstallmentPlan'
+  /v1/installment-plans/{planId}/change-preview:
+    post:
+      summary: Visualizar impacto da edição de um parcelamento
+      tags: [Installment Plans]
+      parameters:
+        - $ref: '#/components/parameters/PlanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateInstallmentPlanRequest'
+      responses:
+        '200':
+          description: Preview de impacto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeImpactPreview'
+  /v1/installment-plans/{planId}:
+    patch:
+      summary: Editar parcelamento somente em parcelas futuras abertas
+      tags: [Installment Plans]
+      parameters:
+        - $ref: '#/components/parameters/PlanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateInstallmentPlanRequest'
+      responses:
+        '200':
+          description: Parcelamento atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstallmentPlan'
+  /v1/installment-plans/{planId}/cancel-preview:
+    post:
+      summary: Visualizar impacto do cancelamento de um parcelamento
+      tags: [Installment Plans]
+      parameters:
+        - $ref: '#/components/parameters/PlanId'
+      responses:
+        '200':
+          description: Preview de cancelamento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeImpactPreview'
+  /v1/installment-plans/{planId}/cancel:
+    post:
+      summary: Cancelar parcelamento sem apagar histórico
+      tags: [Installment Plans]
+      parameters:
+        - $ref: '#/components/parameters/PlanId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Parcelamento cancelado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstallmentPlan'
+  /v1/investment-movements:
+    get:
+      summary: Listar movimentações de investimento
+      tags: [Investment Movements]
+      parameters:
+        - $ref: '#/components/parameters/MonthQuery'
+      responses:
+        '200':
+          description: Lista de movimentações
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InvestmentMovement'
+    post:
+      summary: Criar aporte, rendimento, resgate ou ajuste manual
+      tags: [Investment Movements]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvestmentMovementRequest'
+      responses:
+        '201':
+          description: Movimento criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentMovement'
+  /v1/investment-movements/{movementId}:
+    patch:
+      summary: Atualizar movimento de investimento
+      tags: [Investment Movements]
+      parameters:
+        - $ref: '#/components/parameters/MovementId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateInvestmentMovementRequest'
+      responses:
+        '200':
+          description: Movimento atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentMovement'
+  /v1/months/{month}/overview:
+    get:
+      summary: Obter consolidação mensal
+      tags: [Monthly Overview]
+      parameters:
+        - $ref: '#/components/parameters/MonthPath'
+      responses:
+        '200':
+          description: Consolidação do mês
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonthlyOverview'
+  /v1/months/{month}/breakdown:
+    get:
+      summary: Obter rastreabilidade de um total mensal
+      tags: [Monthly Overview]
+      parameters:
+        - $ref: '#/components/parameters/MonthPath'
+        - in: query
+          name: metric
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Itens que compõem o total solicitado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonthlyBreakdown'
+  /v1/dashboard:
+    get:
+      summary: Obter dashboard inicial
+      tags: [Dashboard]
+      responses:
+        '200':
+          description: Indicadores e séries do dashboard
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardResponse'
+  /v1/audit/{entityName}/{entityId}:
+    get:
+      summary: Listar trilha de auditoria de uma entidade
+      tags: [Audit]
+      parameters:
+        - in: path
+          name: entityName
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: entityId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Eventos de auditoria da entidade
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditEvent'
+components:
+  parameters:
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      required: false
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 255
+      description: Chave para deduplicação técnica de operações repetidas.
+    MonthQuery:
+      in: query
+      name: month
+      required: false
+      schema:
+        $ref: '#/components/schemas/MonthDate'
+      description: Competência mensal no formato YYYY-MM-01.
+    MonthPath:
+      in: path
+      name: month
+      required: true
+      schema:
+        $ref: '#/components/schemas/MonthDate'
+      description: Competência mensal no formato YYYY-MM-01.
+    CategoryId:
+      in: path
+      name: categoryId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    EntryId:
+      in: path
+      name: entryId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    RuleId:
+      in: path
+      name: ruleId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PlanId:
+      in: path
+      name: planId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    MovementId:
+      in: path
+      name: movementId
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    MonthDate:
+      type: string
+      pattern: '^\d{4}-\d{2}-01$'
+      example: '2026-07-01'
+    LocalDate:
+      type: string
+      format: date
+      example: '2026-07-23'
+    MoneyString:
+      type: string
+      pattern: '^-?\d+\.\d{2}$'
+      example: '1234.56'
+    PositiveMoneyString:
+      type: string
+      pattern: '^\d+\.\d{2}$'
+      example: '1234.56'
+    RateString:
+      type: string
+      pattern: '^\d+\.\d{1,8}$'
+      example: '0.00850000'
+    EntryStatus:
+      type: string
+      enum: [PLANNED, REALIZED, CANCELED]
+    EntryKind:
+      type: string
+      enum:
+        - SALARY_INSTALLMENT
+        - EXTRA_INCOME
+        - FIXED_EXPENSE_OCCURRENCE
+        - VARIABLE_EXPENSE
+        - INSTALLMENT_CHARGE
+    InvestmentMovementType:
+      type: string
+      enum: [CONTRIBUTION, YIELD, WITHDRAWAL, MANUAL_ADJUSTMENT]
+    FinancialSettings:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        controlStartDate: { $ref: '#/components/schemas/LocalDate' }
+        monthlyNetSalary: { $ref: '#/components/schemas/PositiveMoneyString' }
+        firstSalaryInstallmentAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        firstSalaryInstallmentDay: { type: integer, minimum: 1, maximum: 31 }
+        secondSalaryInstallmentAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        defaultMonthlyContribution: { $ref: '#/components/schemas/PositiveMoneyString' }
+        projectedMonthlyInvestmentYieldRate: { $ref: '#/components/schemas/RateString' }
+        initialOperationalBalance: { $ref: '#/components/schemas/MoneyString' }
+        initialInvestmentBalance: { $ref: '#/components/schemas/MoneyString' }
+    UpsertFinancialSettingsRequest:
+      type: object
+      required:
+        - controlStartDate
+        - monthlyNetSalary
+        - firstSalaryInstallmentAmount
+        - firstSalaryInstallmentDay
+        - defaultMonthlyContribution
+        - projectedMonthlyInvestmentYieldRate
+        - initialOperationalBalance
+        - initialInvestmentBalance
+      properties:
+        controlStartDate: { $ref: '#/components/schemas/LocalDate' }
+        monthlyNetSalary: { $ref: '#/components/schemas/PositiveMoneyString' }
+        firstSalaryInstallmentAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        firstSalaryInstallmentDay: { type: integer, minimum: 1, maximum: 31 }
+        defaultMonthlyContribution: { $ref: '#/components/schemas/PositiveMoneyString' }
+        projectedMonthlyInvestmentYieldRate: { $ref: '#/components/schemas/RateString' }
+        initialOperationalBalance: { $ref: '#/components/schemas/MoneyString' }
+        initialInvestmentBalance: { $ref: '#/components/schemas/MoneyString' }
+    Category:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        kind: { type: string, enum: [EXPENSE, INCOME] }
+        isActive: { type: boolean }
+    CreateCategoryRequest:
+      type: object
+      required: [name, kind]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        kind: { type: string, enum: [EXPENSE, INCOME] }
+    UpdateCategoryRequest:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        isActive: { type: boolean }
+    FinancialEntry:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        kind: { $ref: '#/components/schemas/EntryKind' }
+        status: { $ref: '#/components/schemas/EntryStatus' }
+        description: { type: string }
+        categoryId: { type: string, format: uuid, nullable: true }
+        competencyMonth: { $ref: '#/components/schemas/MonthDate' }
+        plannedDate: { $ref: '#/components/schemas/LocalDate' }
+        effectiveDate: { $ref: '#/components/schemas/LocalDate', nullable: true }
+        plannedAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        effectiveAmount: { $ref: '#/components/schemas/PositiveMoneyString', nullable: true }
+        origin: { type: string }
+    CreateFinancialEntryRequest:
+      type: object
+      required: [kind, status, description, plannedDate, plannedAmount]
+      properties:
+        kind: { $ref: '#/components/schemas/EntryKind' }
+        status: { $ref: '#/components/schemas/EntryStatus' }
+        description: { type: string, minLength: 1, maxLength: 255 }
+        categoryId: { type: string, format: uuid, nullable: true }
+        plannedDate: { $ref: '#/components/schemas/LocalDate' }
+        effectiveDate: { $ref: '#/components/schemas/LocalDate', nullable: true }
+        plannedAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        effectiveAmount: { $ref: '#/components/schemas/PositiveMoneyString', nullable: true }
+        confirmDuplicate: { type: boolean, default: false }
+    UpdateFinancialEntryRequest:
+      type: object
+      properties:
+        status: { $ref: '#/components/schemas/EntryStatus' }
+        description: { type: string, maxLength: 255 }
+        categoryId: { type: string, format: uuid, nullable: true }
+        plannedDate: { $ref: '#/components/schemas/LocalDate' }
+        effectiveDate: { $ref: '#/components/schemas/LocalDate', nullable: true }
+        plannedAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        effectiveAmount: { $ref: '#/components/schemas/PositiveMoneyString', nullable: true }
+    DuplicateCheckRequest:
+      type: object
+      required: [kind, plannedDate, plannedAmount, description]
+      properties:
+        kind: { $ref: '#/components/schemas/EntryKind' }
+        plannedDate: { $ref: '#/components/schemas/LocalDate' }
+        plannedAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        description: { type: string }
+        categoryId: { type: string, format: uuid, nullable: true }
+    DuplicateCheckResponse:
+      type: object
+      properties:
+        possibleDuplicate: { type: boolean }
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/FinancialEntry'
+    DuplicateWarningResponse:
+      allOf:
+        - $ref: '#/components/schemas/DuplicateCheckResponse'
+        - type: object
+          properties:
+            code: { type: string, example: POSSIBLE_DUPLICATE }
+    RecurrenceRule:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        description: { type: string }
+        categoryId: { type: string, format: uuid }
+        defaultAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        dueDay: { type: integer, minimum: 1, maximum: 31 }
+        startDate: { $ref: '#/components/schemas/LocalDate' }
+        endDate: { $ref: '#/components/schemas/LocalDate', nullable: true }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+    CreateRecurrenceRuleRequest:
+      allOf:
+        - $ref: '#/components/schemas/RecurrenceRule'
+    UpdateRecurrenceRuleRequest:
+      type: object
+      properties:
+        description: { type: string }
+        categoryId: { type: string, format: uuid }
+        defaultAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        dueDay: { type: integer, minimum: 1, maximum: 31 }
+        endDate: { $ref: '#/components/schemas/LocalDate', nullable: true }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+    InstallmentPlan:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        description: { type: string }
+        categoryId: { type: string, format: uuid }
+        totalAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        installmentCount: { type: integer, minimum: 1 }
+        installmentAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        purchaseDate: { $ref: '#/components/schemas/LocalDate' }
+        firstInstallmentMonth: { $ref: '#/components/schemas/MonthDate' }
+        paymentMethod: { type: string }
+        status: { type: string, enum: [ACTIVE, CANCELED, COMPLETED] }
+        remainingAmount: { $ref: '#/components/schemas/MoneyString' }
+    CreateInstallmentPlanRequest:
+      allOf:
+        - $ref: '#/components/schemas/InstallmentPlan'
+    UpdateInstallmentPlanRequest:
+      type: object
+      properties:
+        description: { type: string }
+        categoryId: { type: string, format: uuid }
+        installmentCount: { type: integer, minimum: 1 }
+        installmentAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        paymentMethod: { type: string }
+    InvestmentMovement:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        movementType: { $ref: '#/components/schemas/InvestmentMovementType' }
+        status: { $ref: '#/components/schemas/EntryStatus' }
+        competencyMonth: { $ref: '#/components/schemas/MonthDate' }
+        plannedDate: { $ref: '#/components/schemas/LocalDate' }
+        effectiveDate: { $ref: '#/components/schemas/LocalDate', nullable: true }
+        plannedAmount: { $ref: '#/components/schemas/PositiveMoneyString' }
+        effectiveAmount: { $ref: '#/components/schemas/PositiveMoneyString', nullable: true }
+        adjustmentTarget:
+          type: string
+          enum: [OPERATIONAL_BALANCE, INVESTMENT_BALANCE]
+          nullable: true
+        description: { type: string }
+    CreateInvestmentMovementRequest:
+      allOf:
+        - $ref: '#/components/schemas/InvestmentMovement'
+    UpdateInvestmentMovementRequest:
+      type: object
+      properties:
+        status: { $ref: '#/components/schemas/EntryStatus' }
+        effectiveDate: { $ref: '#/components/schemas/LocalDate', nullable: true }
+        effectiveAmount: { $ref: '#/components/schemas/PositiveMoneyString', nullable: true }
+        adjustmentTarget:
+          type: string
+          enum: [OPERATIONAL_BALANCE, INVESTMENT_BALANCE]
+          nullable: true
+        description: { type: string }
+    MonthlyOverview:
+      type: object
+      properties:
+        month: { $ref: '#/components/schemas/MonthDate' }
+        plannedIncome: { $ref: '#/components/schemas/MoneyString' }
+        realizedIncome: { $ref: '#/components/schemas/MoneyString' }
+        plannedFixedExpenses: { $ref: '#/components/schemas/MoneyString' }
+        realizedExpenses: { $ref: '#/components/schemas/MoneyString' }
+        variableExpenses: { $ref: '#/components/schemas/MoneyString' }
+        installments: { $ref: '#/components/schemas/MoneyString' }
+        contributions: { $ref: '#/components/schemas/MoneyString' }
+        yields: { $ref: '#/components/schemas/MoneyString' }
+        operationalBalance: { $ref: '#/components/schemas/MoneyString' }
+        investmentBalance: { $ref: '#/components/schemas/MoneyString' }
+        plannedVsRealizedDelta: { $ref: '#/components/schemas/MoneyString' }
+    MonthlyBreakdown:
+      type: object
+      properties:
+        metric: { type: string }
+        month: { $ref: '#/components/schemas/MonthDate' }
+        items:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/FinancialEntry'
+              - $ref: '#/components/schemas/InvestmentMovement'
+    DashboardResponse:
+      type: object
+      properties:
+        currentInvestmentPatrimony: { $ref: '#/components/schemas/MoneyString' }
+        monthlyContribution: { $ref: '#/components/schemas/MoneyString' }
+        monthlyIncome: { $ref: '#/components/schemas/MoneyString' }
+        monthlyExpenses: { $ref: '#/components/schemas/MoneyString' }
+        operationalBalance: { $ref: '#/components/schemas/MoneyString' }
+        investmentEvolution:
+          type: array
+          items:
+            type: object
+            properties:
+              month: { $ref: '#/components/schemas/MonthDate' }
+              value: { $ref: '#/components/schemas/MoneyString' }
+        expensesByCategory:
+          type: array
+          items:
+            type: object
+            properties:
+              categoryName: { type: string }
+              value: { $ref: '#/components/schemas/MoneyString' }
+        plannedVsRealized:
+          type: array
+          items:
+            type: object
+            properties:
+              month: { $ref: '#/components/schemas/MonthDate' }
+              planned: { $ref: '#/components/schemas/MoneyString' }
+              realized: { $ref: '#/components/schemas/MoneyString' }
+    AuditEvent:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        entityName: { type: string }
+        entityId: { type: string, format: uuid }
+        operation: { type: string }
+        beforeSnapshot:
+          type: object
+          additionalProperties: true
+          nullable: true
+        afterSnapshot:
+          type: object
+          additionalProperties: true
+          nullable: true
+        changeOrigin: { type: string, example: local-user }
+        occurredAt: { type: string, format: date-time }
+    ChangeImpactPreview:
+      type: object
+      properties:
+        summary: { type: string }
+        affectedMonths:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthDate'
+        affectedOpenInstallments: { type: integer }
+        affectedRealizedEntries: { type: integer }
+        warnings:
+          type: array
+          items:
+            type: string
