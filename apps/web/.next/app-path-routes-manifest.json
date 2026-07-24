@@ -1,7 +1,0 @@
-{
-  "/_not-found/page": "/_not-found",
-  "/api/[...path]/route": "/api/[...path]",
-  "/page": "/",
-  "/settings/page": "/settings",
-  "/months/[year]/[month]/page": "/months/[year]/[month]"
-}
