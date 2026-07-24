@@ -1,0 +1,43 @@
+{
+  "name": "@finance/api",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "nest start --watch",
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint src tests --ext .ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev --schema prisma/schema.prisma",
+    "db:studio": "prisma studio --schema prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@finance/config": "0.0.0",
+    "@finance/contracts": "0.0.0",
+    "@nestjs/common": "^11.1.28",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.1.28",
+    "@nestjs/platform-express": "^11.1.28",
+    "@nestjs/swagger": "^11.4.6",
+    "@prisma/client": "^7.9.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/testing": "^11.1.28",
+    "@types/express": "^5.0.3",
+    "@types/node": "^26.1.1",
+    "@types/supertest": "^6.0.3",
+    "cross-env": "^10.1.0",
+    "eslint": "^9.39.5",
+    "prisma": "^7.9.0",
+    "supertest": "^7.2.2",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  }
+}

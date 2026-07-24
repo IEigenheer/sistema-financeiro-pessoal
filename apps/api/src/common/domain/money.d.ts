@@ -1,0 +1,11 @@
+export type MoneyString = string;
+export type RateString = string;
+export declare function normalizeMoneyString(value: string): MoneyString;
+export declare function normalizeRateString(value: string): RateString;
+export declare function moneyStringToMinorUnits(value: string): bigint;
+export declare function minorUnitsToMoneyString(value: bigint): MoneyString;
+export declare function rateStringToScaledUnits(value: string): bigint;
+export declare function multiplyMoneyByRate(money: string, rate: string): MoneyString;
+export declare function addMoneyStrings(left: string, right: string): MoneyString;
+export declare function subtractMoneyStrings(left: string, right: string): MoneyString;
+export declare function isPositiveMoneyString(value: string): boolean;

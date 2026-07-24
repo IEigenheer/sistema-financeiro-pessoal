@@ -1,0 +1,297 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+
+}
+
+enum SecondSalaryInstallmentDateRule {
+  LAST_DAY_OF_MONTH
+}
+
+enum MonthlyCompetencyStatus {
+  MATERIALIZED
+  STALE
+}
+
+enum AuditOperation {
+  CREATE
+  UPDATE
+  DELETE
+  CANCEL
+  MATERIALIZE
+}
+
+enum ChangeOrigin {
+  LOCAL_USER
+  SYSTEM
+}
+
+enum EntryKind {
+  SALARY_INSTALLMENT
+  EXTRA_INCOME
+  FIXED_EXPENSE_OCCURRENCE
+  VARIABLE_EXPENSE
+  INSTALLMENT_CHARGE
+}
+
+enum EntryDirection {
+  INFLOW
+  OUTFLOW
+}
+
+enum EntryStatus {
+  PLANNED
+  REALIZED
+  CANCELED
+}
+
+enum EntryOrigin {
+  MANUAL
+  SYSTEM_SALARY
+  RECURRENCE_RULE
+  INSTALLMENT_PLAN
+  START_DATE_RECALCULATION
+}
+
+enum RecurrenceRuleStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum InstallmentPlanStatus {
+  ACTIVE
+  CANCELED
+  COMPLETED
+}
+
+enum InstallmentItemStatus {
+  OPEN
+  REALIZED
+  CANCELED
+}
+
+enum InvestmentMovementType {
+  CONTRIBUTION
+  YIELD
+  REDEMPTION
+  MANUAL_ADJUSTMENT
+}
+
+enum AdjustmentTarget {
+  OPERATIONAL
+  INVESTMENT
+}
+
+enum AdjustmentDirection {
+  INCREASE
+  DECREASE
+}
+
+model FinancialSettings {
+  id                              String   @id @default(uuid()) @db.Uuid
+  controlStartDate                DateTime @db.Date
+  monthlyNetSalary                Decimal  @db.Decimal(19, 2)
+  firstSalaryInstallmentAmount    Decimal  @db.Decimal(19, 2)
+  firstSalaryInstallmentDay       Int
+  secondSalaryInstallmentAmount   Decimal  @db.Decimal(19, 2)
+  secondSalaryInstallmentDateRule  SecondSalaryInstallmentDateRule
+  defaultMonthlyContribution      Decimal  @db.Decimal(19, 2)
+  projectedMonthlyInvestmentYieldRate Decimal @db.Decimal(12, 8)
+  initialOperationalBalance       Decimal  @db.Decimal(19, 2)
+  initialInvestmentBalance        Decimal  @db.Decimal(19, 2)
+  active                          Boolean  @default(true)
+  createdAt                       DateTime @default(now())
+  updatedAt                       DateTime @updatedAt
+
+  @@index([active])
+}
+
+model Category {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String   @db.VarChar(120)
+  normalizedName String  @db.VarChar(120)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  recurrenceRules RecurrenceRule[]
+  financialEntries FinancialEntry[]
+  installmentPlans InstallmentPlan[]
+
+  @@unique([normalizedName, isActive])
+  @@index([normalizedName])
+}
+
+model MonthlyCompetency {
+  id                        String   @id @default(uuid()) @db.Uuid
+  monthStart                DateTime @unique @db.Date
+  controlStartDateSnapshot  DateTime @db.Date
+  status                    MonthlyCompetencyStatus @default(MATERIALIZED)
+  openingOperationalBalance Decimal  @db.Decimal(19, 2) @default(0)
+  openingInvestmentBalance  Decimal  @db.Decimal(19, 2) @default(0)
+  plannedSalaryInstallments Json?
+  plannedIncome             Decimal  @db.Decimal(19, 2) @default(0)
+  realizedIncome            Decimal  @db.Decimal(19, 2) @default(0)
+  plannedFixedExpenses      Decimal  @db.Decimal(19, 2) @default(0)
+  realizedExpenses          Decimal  @db.Decimal(19, 2) @default(0)
+  variableExpenses          Decimal  @db.Decimal(19, 2) @default(0)
+  installments              Decimal  @db.Decimal(19, 2) @default(0)
+  contributions             Decimal  @db.Decimal(19, 2) @default(0)
+  yields                    Decimal  @db.Decimal(19, 2) @default(0)
+  operationalBalance        Decimal  @db.Decimal(19, 2) @default(0)
+  investmentBalance         Decimal  @db.Decimal(19, 2) @default(0)
+  plannedVsRealizedDelta    Decimal  @db.Decimal(19, 2) @default(0)
+  lastMaterializedAt        DateTime @default(now())
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+
+  @@index([controlStartDateSnapshot])
+}
+
+model RecurrenceRule {
+  id            String   @id @default(uuid()) @db.Uuid
+  description   String   @db.VarChar(255)
+  categoryId    String   @db.Uuid
+  defaultAmount Decimal  @db.Decimal(19, 2)
+  dueDay        Int
+  startDate     DateTime @db.Date
+  endDate       DateTime? @db.Date
+  status        RecurrenceRuleStatus @default(ACTIVE)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  category         Category        @relation(fields: [categoryId], references: [id])
+  financialEntries FinancialEntry[]
+
+  @@index([categoryId])
+  @@index([status, startDate])
+}
+
+model FinancialEntry {
+  id                  String   @id @default(uuid()) @db.Uuid
+  kind                EntryKind
+  direction           EntryDirection
+  status              EntryStatus @default(PLANNED)
+  origin              EntryOrigin @default(MANUAL)
+  description         String   @db.VarChar(255)
+  normalizedDescription String @db.VarChar(255)
+  categoryId          String?  @db.Uuid
+  competencyMonth     DateTime @db.Date
+  plannedDate         DateTime @db.Date
+  effectiveDate       DateTime? @db.Date
+  plannedAmount       Decimal  @db.Decimal(19, 2)
+  effectiveAmount     Decimal? @db.Decimal(19, 2)
+  recurrenceRuleId    String?  @db.Uuid
+  installmentItemId   String?  @unique @db.Uuid
+  generationKey       String?  @unique @db.VarChar(150)
+  duplicatedFromId    String?  @db.Uuid
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  category        Category?       @relation(fields: [categoryId], references: [id])
+  recurrenceRule   RecurrenceRule? @relation(fields: [recurrenceRuleId], references: [id])
+  duplicatedFrom   FinancialEntry? @relation("FinancialEntryDuplicate", fields: [duplicatedFromId], references: [id])
+  duplicatedTo     FinancialEntry[] @relation("FinancialEntryDuplicate")
+
+  @@index([competencyMonth, kind, status])
+  @@index([plannedDate])
+  @@index([effectiveDate])
+  @@index([categoryId, competencyMonth])
+  @@index([normalizedDescription, plannedAmount, plannedDate])
+}
+
+model InstallmentPlan {
+  id                String   @id @default(uuid()) @db.Uuid
+  description       String   @db.VarChar(255)
+  categoryId        String   @db.Uuid
+  totalAmount       Decimal  @db.Decimal(19, 2)
+  installmentCount  Int
+  installmentAmount Decimal  @db.Decimal(19, 2)
+  purchaseDate      DateTime @db.Date
+  firstInstallmentMonth DateTime @db.Date
+  paymentMethod     String   @db.VarChar(80)
+  status            InstallmentPlanStatus @default(ACTIVE)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  category Category @relation(fields: [categoryId], references: [id])
+  items    InstallmentItem[]
+
+  @@index([categoryId])
+  @@index([status, firstInstallmentMonth])
+}
+
+model InstallmentItem {
+  id                String   @id @default(uuid()) @db.Uuid
+  installmentPlanId  String   @db.Uuid
+  installmentNumber  Int
+  competencyMonth    DateTime @db.Date
+  amount            Decimal  @db.Decimal(19, 2)
+  status            InstallmentItemStatus @default(OPEN)
+  financialEntryId   String?  @unique @db.Uuid
+  plannedDate        DateTime @db.Date
+  effectiveDate      DateTime? @db.Date
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  installmentPlan InstallmentPlan @relation(fields: [installmentPlanId], references: [id])
+
+  @@unique([installmentPlanId, installmentNumber])
+  @@index([competencyMonth])
+  @@index([status, competencyMonth])
+}
+
+model InvestmentMovement {
+  id                String   @id @default(uuid()) @db.Uuid
+  movementType      InvestmentMovementType
+  target            AdjustmentTarget?
+  direction         AdjustmentDirection?
+  description       String   @db.VarChar(255)
+  competencyMonth   DateTime @db.Date
+  plannedDate       DateTime @db.Date
+  effectiveDate     DateTime? @db.Date
+  plannedAmount     Decimal  @db.Decimal(19, 2)
+  effectiveAmount   Decimal? @db.Decimal(19, 2)
+  status            EntryStatus @default(PLANNED)
+  auditEventId      String?  @db.Uuid
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  auditEvent AuditEvent? @relation(fields: [auditEventId], references: [id])
+
+  @@index([competencyMonth])
+  @@index([movementType, competencyMonth])
+}
+
+model AuditEvent {
+  id            String   @id @default(uuid()) @db.Uuid
+  entityName    String   @db.VarChar(80)
+  entityId      String   @db.Uuid
+  operation     AuditOperation
+  changeOrigin  ChangeOrigin
+  previousValues Json?
+  nextValues    Json?
+  occurredAt    DateTime @default(now())
+  performedBy   String   @default("local-user") @db.VarChar(80)
+
+  investmentMovements InvestmentMovement[]
+
+  @@index([entityName, entityId])
+  @@index([occurredAt])
+}
+
+model IdempotencyKey {
+  id            String   @id @default(uuid()) @db.Uuid
+  key           String   @unique @db.VarChar(150)
+  requestHash   String   @db.VarChar(128)
+  responseStatus Int?
+  responseBody  Json?
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  @@index([expiresAt])
+}
