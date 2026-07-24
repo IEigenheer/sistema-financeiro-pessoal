@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { AppNav } from '../components/app-nav';
 
 export const metadata: Metadata = {
   title: 'Sistema Financeiro Pessoal',
@@ -10,7 +11,16 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="pt-BR">
       <body>
-        <main className="shell">{children}</main>
+        <main className="shell">
+          <header className="topbar">
+            <div>
+              <p className="eyebrow">Sistema Financeiro Pessoal</p>
+              <h1 className="topbar-title">Planilha operacional, patrimônio e simulações em uma interface web.</h1>
+            </div>
+            <AppNav />
+          </header>
+          {children}
+        </main>
       </body>
     </html>
   );

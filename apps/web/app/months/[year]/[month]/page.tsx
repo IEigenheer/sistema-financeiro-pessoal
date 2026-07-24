@@ -1,4 +1,4 @@
-import { MonthPage } from '../../../../components/month-page';
+import { MonthsWorkspace } from '../../../../components/months-workspace';
 
 type Props = {
   params: Promise<{
@@ -9,10 +9,5 @@ type Props = {
 
 export default async function MonthRoute({ params }: Props) {
   const resolved = await params;
-  return (
-    <MonthPage
-      year={Number(resolved.year)}
-      month={Number(resolved.month)}
-    />
-  );
+  return <MonthsWorkspace initialYear={Number(resolved.year)} initialMonth={Number(resolved.month)} />;
 }

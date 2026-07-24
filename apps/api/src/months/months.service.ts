@@ -55,6 +55,7 @@ export class MonthsService {
           variableTotal: 0,
           installmentTotal: 0,
           investmentContribution: 0,
+          sheetInvestmentContribution: 0,
           checkingBalance: null,
           investmentReturnAdjustment: 0,
           investmentBalance: null,
@@ -63,7 +64,7 @@ export class MonthsService {
         continue;
       }
 
-      const contribution = summary.investmentContribution;
+      const contribution = summary.effectiveInvestmentContribution;
       const investmentReturnAdjustment = summary.adjustment?.investmentReturnAdjustment ?? 0;
       const checkingBalance = roundCurrency(
         (hasStarted ? previousChecking : toNumber(context.settings.initialCheckingBalance)) +
@@ -93,6 +94,7 @@ export class MonthsService {
         variableTotal: summary.variableTotal,
         installmentTotal: summary.installmentTotal,
         investmentContribution: contribution,
+        sheetInvestmentContribution: summary.investmentContribution,
         checkingBalance,
         investmentReturnAdjustment,
         investmentBalance,
@@ -227,12 +229,15 @@ export class MonthsService {
         .map((item) => [item.fixedExpenseTemplateId, item]),
     );
     const adjustment = context.adjustments.find((item) => item.month === month) ?? null;
-    const contribution = isActive
+    const sheetContribution = isActive
+      ? roundCurrency(toNumber(context.settings.monthlyInvestmentContribution))
+      : 0;
+    const effectiveContribution = isActive
       ? roundCurrency(
           adjustment?.investmentContributionOverride !== null &&
             adjustment?.investmentContributionOverride !== undefined
             ? toNumber(adjustment.investmentContributionOverride)
-            : toNumber(context.settings.monthlyInvestmentContribution),
+            : sheetContribution,
         )
       : 0;
 
@@ -324,7 +329,7 @@ export class MonthsService {
       activeInstallments.reduce((sum, item) => sum + toNumber(item.installmentAmount), 0),
     );
     const availableBalance = roundCurrency(
-      entriesTotal - fixedPaidTotal - variableTotal - installmentTotal - contribution,
+      entriesTotal - fixedPaidTotal - variableTotal - installmentTotal - sheetContribution,
     );
 
     return {
@@ -341,7 +346,8 @@ export class MonthsService {
       fixedPaidTotal,
       variableTotal,
       installmentTotal,
-      investmentContribution: contribution,
+      investmentContribution: sheetContribution,
+      effectiveInvestmentContribution: effectiveContribution,
       availableBalance,
       adjustment: adjustment
         ? {

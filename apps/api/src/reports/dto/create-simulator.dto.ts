@@ -1,5 +1,34 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsNumber, IsOptional, Max, Min } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+
+class SimulatorExtraEntryDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(36)
+  monthIndex!: number;
+
+  @IsString()
+  label!: string;
+
+  @Type(() => Number)
+  @IsNumber()
+  amount!: number;
+
+  @IsIn(['both', 'base', 'comparison'])
+  scenario!: 'both' | 'base' | 'comparison';
+}
 
 export class CreateSimulatorDto {
   @IsOptional()
@@ -23,11 +52,11 @@ export class CreateSimulatorDto {
 
   @Type(() => Number)
   @IsNumber()
-  investmentX!: number;
+  baseMonthlyInvestment!: number;
 
   @Type(() => Number)
   @IsNumber()
-  investmentY!: number;
+  comparisonMonthlyInvestment!: number;
 
   @Type(() => Number)
   @IsNumber()
@@ -36,7 +65,7 @@ export class CreateSimulatorDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(24)
+  @Max(36)
   monthsToSimulate!: number;
 
   @Type(() => Number)
@@ -55,6 +84,16 @@ export class CreateSimulatorDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(24)
+  @Max(36)
   purchaseStartMonthIndex!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  investmentOnly?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SimulatorExtraEntryDto)
+  extraEntries?: SimulatorExtraEntryDto[];
 }

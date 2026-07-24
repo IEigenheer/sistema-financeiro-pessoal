@@ -1,112 +1,66 @@
 'use client';
 
 import Link from 'next/link';
-import { startTransition, useEffect, useState } from 'react';
-import { formatCurrency, formatDate, formatMonth } from '../lib/format';
-
-type Overview = {
-  year: number;
-  currentMonth: number;
-  settings: Record<string, unknown>;
-  accounts: Array<Record<string, unknown>>;
-  currentMonthDetail: Record<string, unknown>;
-  dashboard: Array<Record<string, unknown>>;
-};
-
-type SimulatorState = {
-  salaryMonthly: number;
-  fixedMonthlyExpense: number;
-  variableMonthlyExpense: number;
-  investmentX: number;
-  investmentY: number;
-  monthlyReturnRate: number;
-  monthsToSimulate: number;
-  purchaseValue: number;
-  purchaseMode: 'cash' | 'installment';
-  purchaseInstallmentCount: number;
-  purchaseStartMonthIndex: number;
-};
+import { useEffect, useMemo, useState } from 'react';
+import { EChart } from './echart';
+import { formatCurrency, formatMonth } from '../lib/format';
 
 export function DashboardPage() {
-  const [overview, setOverview] = useState<Overview | null>(null);
-  const [simulator, setSimulator] = useState<SimulatorState | null>(null);
-  const [simulationResult, setSimulationResult] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  async function loadData() {
-    const response = await fetch('/api/reports/overview', { cache: 'no-store' });
-    const data = await response.json();
-    setOverview(data);
-    setSimulator({
-      salaryMonthly: Number(data.settings.salaryNetTotal),
-      fixedMonthlyExpense: Number(data.currentMonthDetail.fixedPlannedTotal),
-      variableMonthlyExpense: Number(data.currentMonthDetail.variableTotal),
-      investmentX: Number(data.currentMonthDetail.investmentContribution),
-      investmentY: Number(data.currentMonthDetail.investmentContribution) + 2000,
-      monthlyReturnRate: Number(data.settings.projectedMonthlyReturnRate),
-      monthsToSimulate: 6,
-      purchaseValue: 0,
-      purchaseMode: 'cash',
-      purchaseInstallmentCount: 1,
-      purchaseStartMonthIndex: 1,
-    });
-    setLoading(false);
-  }
-
-  async function runSimulation(current: SimulatorState) {
-    const response = await fetch('/api/reports/simulator', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(current),
-    });
-    const data = await response.json();
-    setSimulationResult(data);
-  }
+  const [overview, setOverview] = useState<any>(null);
 
   useEffect(() => {
-    loadData().catch(() => setLoading(false));
+    fetch('/api/reports/overview', { cache: 'no-store' })
+      .then((response) => response.json())
+      .then(setOverview)
+      .catch(() => undefined);
   }, []);
 
-  useEffect(() => {
-    if (!simulator) {
-      return;
-    }
+  const accounts = overview?.accounts ?? [];
+  const current = overview?.currentMonthDetail;
+  const currentAccount = accounts.find((item: any) => item.month === overview?.currentMonth);
 
-    startTransition(() => {
-      runSimulation(simulator).catch(() => undefined);
-    });
-  }, [simulator]);
+  const chartOption = useMemo(() => ({
+    tooltip: { trigger: 'axis' },
+    grid: { left: 24, right: 24, top: 36, bottom: 24, containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: accounts.map((item: any) => item.label),
+      axisLine: { lineStyle: { color: '#c9b8a2' } },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { formatter: (value: number) => `R$ ${Math.round(value).toLocaleString('pt-BR')}` },
+    },
+    series: [
+      {
+        name: 'Investimentos',
+        type: 'line',
+        smooth: true,
+        data: accounts.map((item: any) => item.investmentBalance),
+        lineStyle: { width: 4, color: '#0f766e' },
+        itemStyle: { color: '#0f766e' },
+        areaStyle: { color: 'rgba(15, 118, 110, 0.16)' },
+      },
+    ],
+  }), [accounts]);
 
-  if (loading || !overview || !simulator) {
-    return <div className="panel">Carregando visão financeira...</div>;
+  if (!overview || !current) {
+    return <div className="panel">Carregando resumo...</div>;
   }
-
-  const current = overview.currentMonthDetail as any;
-  const accounts = overview.accounts as any[];
-  const dashboard = overview.dashboard as any[];
-  const currentAccount = accounts.find((item) => item.month === overview.currentMonth);
 
   return (
     <div className="stack-xl">
       <section className="hero">
         <div>
-          <p className="eyebrow">Sistema Financeiro Pessoal</p>
-          <h1>Controle mensal, patrimônio e simulação em uma aplicação única.</h1>
+          <p className="eyebrow">Resumo</p>
+          <h2 className="hero-title">Os valores do mês agora seguem a aba mensal da planilha, enquanto o consolidado respeita os ajustes da aba Contas.</h2>
           <p className="muted">
-            Base importada da planilha. As regras de despesas fixas, parcelamentos,
-            dashboard e projeção patrimonial foram transportadas para o backend.
+            O aporte exibido no mês mostra o valor operacional da competência. O aporte efetivo usado no consolidado patrimonial aparece separado quando houver ajuste manual.
           </p>
         </div>
         <div className="hero-actions">
-          <Link href="/settings" className="button button-secondary">
-            Configurações
-          </Link>
-          <Link
-            href={`/months/${overview.year}/${overview.currentMonth}`}
-            className="button"
-          >
-            Abrir mês atual
-          </Link>
+          <Link href="/months" className="button">Abrir meses</Link>
+          <Link href="/simulator" className="button button-secondary">Refinar cenários</Link>
         </div>
       </section>
 
@@ -116,16 +70,16 @@ export function DashboardPage() {
           <strong>{formatCurrency(current.entriesTotal)}</strong>
         </article>
         <article className="panel">
-          <span className="card-label">Saldo disponível</span>
+          <span className="card-label">Saldo disponível do mês</span>
           <strong>{formatCurrency(current.availableBalance)}</strong>
         </article>
         <article className="panel">
-          <span className="card-label">Conta corrente acumulada</span>
-          <strong>{formatCurrency(currentAccount?.checkingBalance)}</strong>
+          <span className="card-label">Aporte do mês na aba mensal</span>
+          <strong>{formatCurrency(current.investmentContribution)}</strong>
         </article>
         <article className="panel">
-          <span className="card-label">Patrimônio total</span>
-          <strong>{formatCurrency(currentAccount?.netWorth)}</strong>
+          <span className="card-label">Aporte efetivo em Contas</span>
+          <strong>{formatCurrency(current.effectiveInvestmentContribution)}</strong>
         </article>
       </section>
 
@@ -133,244 +87,31 @@ export function DashboardPage() {
         <article className="panel">
           <div className="section-head">
             <div>
-              <p className="eyebrow">Mês atual</p>
+              <p className="eyebrow">Competência atual</p>
               <h2>{formatMonth(overview.currentMonth, overview.year)}</h2>
             </div>
-            <Link href={`/months/${overview.year}/${overview.currentMonth}`}>Detalhar</Link>
+            <Link href="/months">Alterar mês</Link>
           </div>
           <dl className="summary-list">
             <div><dt>Despesas fixas previstas</dt><dd>{formatCurrency(current.fixedPlannedTotal)}</dd></div>
             <div><dt>Despesas fixas pagas</dt><dd>{formatCurrency(current.fixedPaidTotal)}</dd></div>
             <div><dt>Despesas variáveis</dt><dd>{formatCurrency(current.variableTotal)}</dd></div>
             <div><dt>Parcelas ativas</dt><dd>{formatCurrency(current.installmentTotal)}</dd></div>
-            <div><dt>Aporte do mês</dt><dd>{formatCurrency(current.investmentContribution)}</dd></div>
-            <div><dt>Saldo em investimentos</dt><dd>{formatCurrency(currentAccount?.investmentBalance)}</dd></div>
+            <div><dt>Investimentos acumulados</dt><dd>{formatCurrency(currentAccount?.investmentBalance)}</dd></div>
+            <div><dt>Patrimônio total</dt><dd>{formatCurrency(currentAccount?.netWorth)}</dd></div>
           </dl>
         </article>
 
         <article className="panel">
           <div className="section-head">
             <div>
-              <p className="eyebrow">Patrimônio por mês</p>
-              <h2>Linha do ano</h2>
+              <p className="eyebrow">Curva patrimonial</p>
+              <h2>Foco em investimentos</h2>
             </div>
+            <Link href="/accounts">Ver aba Contas</Link>
           </div>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Mês</th>
-                  <th>Conta</th>
-                  <th>Invest.</th>
-                  <th>Patrimônio</th>
-                </tr>
-              </thead>
-              <tbody>
-                {accounts.map((row) => (
-                  <tr key={String(row.month)}>
-                    <td>{String(row.label)}</td>
-                    <td>{formatCurrency(row.checkingBalance as number | null)}</td>
-                    <td>{formatCurrency(row.investmentBalance as number | null)}</td>
-                    <td>{formatCurrency(row.netWorth as number | null)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <EChart option={chartOption} height={320} />
         </article>
-      </section>
-
-      <section className="panel">
-        <div className="section-head">
-          <div>
-            <p className="eyebrow">Dashboard</p>
-            <h2>Gastos por categoria</h2>
-          </div>
-        </div>
-        <div className="category-grid">
-          {dashboard.map((category) => (
-            <article key={String(category.categoryId)} className="category-card">
-              <div className="category-head">
-                <strong>{String(category.categoryName)}</strong>
-                <span>{formatCurrency(category.totalYear as number)}</span>
-              </div>
-              <div className="mini-bars">
-                {(category.monthlyTotals as number[]).map((value, index) => (
-                  <div key={`${category.categoryId}-${index}`} className="mini-bar-wrap">
-                    <div
-                      className="mini-bar"
-                      style={{ height: `${Math.max(8, Math.min(100, Number(value) / 15))}%` }}
-                    />
-                    <span>{index + 1}</span>
-                  </div>
-                ))}
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="section-head">
-          <div>
-            <p className="eyebrow">Simulador</p>
-            <h2>Patrimônio futuro</h2>
-          </div>
-        </div>
-        <div className="form-grid">
-          <label>
-            Salário mensal
-            <input
-              type="number"
-              value={simulator.salaryMonthly}
-              onChange={(event) =>
-                setSimulator({ ...simulator, salaryMonthly: Number(event.target.value) })
-              }
-            />
-          </label>
-          <label>
-            Gastos fixos
-            <input
-              type="number"
-              value={simulator.fixedMonthlyExpense}
-              onChange={(event) =>
-                setSimulator({ ...simulator, fixedMonthlyExpense: Number(event.target.value) })
-              }
-            />
-          </label>
-          <label>
-            Gastos variáveis
-            <input
-              type="number"
-              value={simulator.variableMonthlyExpense}
-              onChange={(event) =>
-                setSimulator({ ...simulator, variableMonthlyExpense: Number(event.target.value) })
-              }
-            />
-          </label>
-          <label>
-            Aporte X
-            <input
-              type="number"
-              value={simulator.investmentX}
-              onChange={(event) =>
-                setSimulator({ ...simulator, investmentX: Number(event.target.value) })
-              }
-            />
-          </label>
-          <label>
-            Aporte Y
-            <input
-              type="number"
-              value={simulator.investmentY}
-              onChange={(event) =>
-                setSimulator({ ...simulator, investmentY: Number(event.target.value) })
-              }
-            />
-          </label>
-          <label>
-            Rendimento mensal
-            <input
-              type="number"
-              step="0.001"
-              value={simulator.monthlyReturnRate}
-              onChange={(event) =>
-                setSimulator({ ...simulator, monthlyReturnRate: Number(event.target.value) })
-              }
-            />
-          </label>
-          <label>
-            Meses simulados
-            <input
-              type="number"
-              value={simulator.monthsToSimulate}
-              onChange={(event) =>
-                setSimulator({ ...simulator, monthsToSimulate: Number(event.target.value) })
-              }
-            />
-          </label>
-          <label>
-            Valor da compra
-            <input
-              type="number"
-              value={simulator.purchaseValue}
-              onChange={(event) =>
-                setSimulator({ ...simulator, purchaseValue: Number(event.target.value) })
-              }
-            />
-          </label>
-          <label>
-            Forma de pagamento
-            <select
-              value={simulator.purchaseMode}
-              onChange={(event) =>
-                setSimulator({
-                  ...simulator,
-                  purchaseMode: event.target.value as 'cash' | 'installment',
-                })
-              }
-            >
-              <option value="cash">À vista</option>
-              <option value="installment">Parcelado</option>
-            </select>
-          </label>
-          <label>
-            Nº parcelas
-            <input
-              type="number"
-              value={simulator.purchaseInstallmentCount}
-              onChange={(event) =>
-                setSimulator({
-                  ...simulator,
-                  purchaseInstallmentCount: Number(event.target.value),
-                })
-              }
-            />
-          </label>
-          <label>
-            Compra inicia no mês
-            <input
-              type="number"
-              value={simulator.purchaseStartMonthIndex}
-              onChange={(event) =>
-                setSimulator({
-                  ...simulator,
-                  purchaseStartMonthIndex: Number(event.target.value),
-                })
-              }
-            />
-          </label>
-        </div>
-        {simulationResult ? (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Mês</th>
-                  <th>Data</th>
-                  <th>Parcelas ativas</th>
-                  <th>X sem compra</th>
-                  <th>Y sem compra</th>
-                  <th>Compra</th>
-                  <th>X com compra</th>
-                </tr>
-              </thead>
-              <tbody>
-                {simulationResult.rows.map((row: any) => (
-                  <tr key={row.monthIndex}>
-                    <td>{row.monthIndex}</td>
-                    <td>{formatDate(row.date)}</td>
-                    <td>{formatCurrency(row.existingInstallments)}</td>
-                    <td>{formatCurrency(row.xNetWorthWithoutPurchase)}</td>
-                    <td>{formatCurrency(row.yNetWorthWithoutPurchase)}</td>
-                    <td>{formatCurrency(row.purchaseInstallment)}</td>
-                    <td>{formatCurrency(row.xNetWorthWithPurchase)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
       </section>
     </div>
   );
