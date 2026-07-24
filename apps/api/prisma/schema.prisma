@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CategoryType {
+  FIXED
+  VARIABLE
+}
+
+enum FixedExpenseStatus {
+  PENDING
+  PAID
+}
+
+enum CustomIncomeKind {
+  FIXED_EXTRA
+  VARIABLE_EXTRA
+  OTHER
+}
+
+model AppSettings {
+  id                            Int      @id
+  referenceYear                 Int
+  currentMonthReference         DateTime
+  controlStartDate              DateTime
+  salaryNetTotal                Decimal  @db.Decimal(12, 2)
+  salaryFirstInstallment        Decimal  @db.Decimal(12, 2)
+  salarySecondInstallment       Decimal  @db.Decimal(12, 2)
+  salaryFirstInstallmentDay     Int
+  salarySecondInstallmentLast   Boolean  @default(true)
+  monthlyInvestmentContribution Decimal  @db.Decimal(12, 2)
+  projectedMonthlyReturnRate    Decimal  @db.Decimal(8, 4)
+  initialCheckingBalance        Decimal  @db.Decimal(12, 2)
+  initialInvestmentBalance      Decimal  @db.Decimal(12, 2)
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+}
+
+model Category {
+  id               String               @id @default(cuid())
+  name             String               @unique
+  type             CategoryType
+  fixedExpenses    FixedExpenseTemplate[]
+  installmentPlans InstallmentPlan[]
+  variableExpenses VariableExpense[]
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+}
+
+model FixedExpenseTemplate {
+  id               String                     @id @default(cuid())
+  description      String
+  categoryId       String
+  defaultAmount    Decimal                    @db.Decimal(12, 2)
+  dueDay           Int?
+  dueOnLastDay     Boolean                    @default(false)
+  category         Category                   @relation(fields: [categoryId], references: [id])
+  monthlyStatuses  MonthlyFixedExpenseStatus[]
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+}
+
+model InstallmentPlan {
+  id                    String   @id @default(cuid())
+  description           String
+  categoryId            String
+  totalAmount           Decimal  @db.Decimal(12, 2)
+  installmentCount      Int
+  monthlyAmount         Decimal  @db.Decimal(12, 2)
+  purchaseDate          DateTime
+  firstInstallmentMonth DateTime
+  lastInstallmentMonth  DateTime
+  paymentSource         String
+  category              Category @relation(fields: [categoryId], references: [id])
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model MonthlyIncome {
+  id          String           @id @default(cuid())
+  year        Int
+  month       Int
+  description String
+  day         Int?
+  amount      Decimal          @db.Decimal(12, 2)
+  kind        CustomIncomeKind
+  sortOrder   Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([year, month, description, sortOrder])
+}
+
+model MonthlyFixedExpenseStatus {
+  id                    String             @id @default(cuid())
+  year                  Int
+  month                 Int
+  fixedExpenseTemplateId String
+  status                FixedExpenseStatus
+  paidAmount            Decimal            @db.Decimal(12, 2)
+  fixedExpenseTemplate  FixedExpenseTemplate @relation(fields: [fixedExpenseTemplateId], references: [id])
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  @@unique([year, month, fixedExpenseTemplateId])
+}
+
+model VariableExpense {
+  id          String   @id @default(cuid())
+  year        Int
+  month       Int
+  expenseDate DateTime
+  description String
+  categoryId  String
+  amount      Decimal  @db.Decimal(12, 2)
+  category    Category @relation(fields: [categoryId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MonthlyAdjustment {
+  id                             String   @id @default(cuid())
+  year                           Int
+  month                          Int
+  investmentContributionOverride Decimal? @db.Decimal(12, 2)
+  investmentReturnAdjustment     Decimal? @db.Decimal(12, 2)
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
+
+  @@unique([year, month])
+}

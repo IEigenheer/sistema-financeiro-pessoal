@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: sfp-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: finance
+      POSTGRES_USER: finance
+      POSTGRES_PASSWORD: finance
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: sfp-api
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgresql://finance:finance@db:5432/finance?schema=public
+      WORKBOOK_PATH: /app/private-file/Controle_Financeiro_Corrigido(1).xlsx
+    ports:
+      - "3001:3001"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: sfp-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      PORT: 3000
+      API_INTERNAL_URL: http://api:3001
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:
