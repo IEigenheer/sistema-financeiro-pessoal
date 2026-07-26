@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { EChart } from './echart';
+import { PageHeader } from './page-header';
+import { StatCard } from './stat-card';
 import { formatCurrency, formatMonth } from '../lib/format';
 
 export function DashboardPage() {
@@ -20,16 +22,27 @@ export function DashboardPage() {
   const currentAccount = accounts.find((item: any) => item.month === overview?.currentMonth);
 
   const chartOption = useMemo(() => ({
-    tooltip: { trigger: 'axis' },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'hsl(25, 20%, 15%)',
+      borderColor: 'transparent',
+      textStyle: { color: 'hsl(36, 40%, 94%)', fontSize: 12 },
+    },
     grid: { left: 24, right: 24, top: 36, bottom: 24, containLabel: true },
     xAxis: {
       type: 'category',
       data: accounts.map((item: any) => item.label),
-      axisLine: { lineStyle: { color: '#c9b8a2' } },
+      axisLine: { lineStyle: { color: 'hsl(25, 12%, 80%)' } },
+      axisLabel: { color: 'hsl(25, 10%, 55%)', fontSize: 11 },
     },
     yAxis: {
       type: 'value',
-      axisLabel: { formatter: (value: number) => `R$ ${Math.round(value).toLocaleString('pt-BR')}` },
+      axisLabel: {
+        formatter: (value: number) => `R$ ${Math.round(value).toLocaleString('pt-BR')}`,
+        color: 'hsl(25, 10%, 55%)',
+        fontSize: 11,
+      },
+      splitLine: { lineStyle: { color: 'hsl(25, 20%, 40%, 0.08)' } },
     },
     series: [
       {
@@ -37,82 +50,141 @@ export function DashboardPage() {
         type: 'line',
         smooth: true,
         data: accounts.map((item: any) => item.investmentBalance),
-        lineStyle: { width: 4, color: '#0f766e' },
-        itemStyle: { color: '#0f766e' },
-        areaStyle: { color: 'rgba(15, 118, 110, 0.16)' },
+        lineStyle: { width: 3, color: 'hsl(168, 76%, 28%)' },
+        itemStyle: { color: 'hsl(168, 76%, 28%)' },
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: 'hsla(168, 76%, 28%, 0.2)' },
+              { offset: 1, color: 'hsla(168, 76%, 28%, 0.02)' },
+            ],
+          },
+        },
+        markPoint: currentAccount ? {
+          data: [{
+            name: 'Atual',
+            coord: [currentAccount.label, currentAccount.investmentBalance],
+            symbol: 'circle',
+            symbolSize: 10,
+            itemStyle: { color: 'hsl(38, 92%, 50%)' },
+          }],
+        } : undefined,
       },
     ],
-  }), [accounts]);
+    animationDuration: 800,
+    animationEasing: 'cubicInOut' as const,
+  }), [accounts, currentAccount]);
 
   if (!overview || !current) {
-    return <div className="panel">Carregando resumo...</div>;
+    return (
+      <div className="content-stack">
+        <div className="stat-cards">
+          {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton skeleton-card" />)}
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="stack-xl">
-      <section className="hero">
-        <div>
-          <p className="eyebrow">Resumo</p>
-          <h2 className="hero-title">Os valores do mês agora seguem a aba mensal da planilha, enquanto o consolidado respeita os ajustes da aba Contas.</h2>
-          <p className="muted">
-            O aporte exibido no mês mostra o valor operacional da competência. O aporte efetivo usado no consolidado patrimonial aparece separado quando houver ajuste manual.
-          </p>
-        </div>
-        <div className="hero-actions">
-          <Link href="/months" className="button">Abrir meses</Link>
-          <Link href="/simulator" className="button button-secondary">Refinar cenários</Link>
-        </div>
-      </section>
+    <div className="content-stack">
+      <PageHeader
+        title="Resumo financeiro"
+        subtitle="Visão consolidada do mês atual com reflexo patrimonial"
+        actions={
+          <>
+            <Link href="/months" className="btn btn-primary">📅 Abrir meses</Link>
+            <Link href="/simulator" className="btn btn-secondary">🎯 Simular cenários</Link>
+          </>
+        }
+      />
 
-      <section className="card-grid">
-        <article className="panel">
-          <span className="card-label">Entradas do mês</span>
-          <strong>{formatCurrency(current.entriesTotal)}</strong>
-        </article>
-        <article className="panel">
-          <span className="card-label">Saldo disponível do mês</span>
-          <strong>{formatCurrency(current.availableBalance)}</strong>
-        </article>
-        <article className="panel">
-          <span className="card-label">Aporte do mês na aba mensal</span>
-          <strong>{formatCurrency(current.investmentContribution)}</strong>
-        </article>
-        <article className="panel">
-          <span className="card-label">Aporte efetivo em Contas</span>
-          <strong>{formatCurrency(current.effectiveInvestmentContribution)}</strong>
-        </article>
-      </section>
+      <div className="stat-cards">
+        <StatCard
+          icon="💵"
+          label="Entradas do mês"
+          value={current.entriesTotal}
+          formula="Soma de salário + entradas extras do mês"
+          color="emerald"
+        />
+        <StatCard
+          icon="💰"
+          label="Saldo disponível"
+          value={current.availableBalance}
+          formula="Entradas − despesas fixas pagas − variáveis − parcelas"
+          color="sky"
+        />
+        <StatCard
+          icon="📈"
+          label="Aporte do mês"
+          value={current.investmentContribution}
+          formula="Valor destinado a investimento na competência mensal"
+          color="amber"
+        />
+        <StatCard
+          icon="🏦"
+          label="Aporte efetivo"
+          value={current.effectiveInvestmentContribution}
+          formula="Aporte real usado no consolidado patrimonial (Contas)"
+          color="violet"
+        />
+      </div>
 
-      <section className="two-columns">
-        <article className="panel">
-          <div className="section-head">
+      <div className="two-col">
+        <div className="section-panel">
+          <div className="section-panel-header">
             <div>
-              <p className="eyebrow">Competência atual</p>
-              <h2>{formatMonth(overview.currentMonth, overview.year)}</h2>
+              <div className="section-panel-title">{formatMonth(overview.currentMonth, overview.year)}</div>
+              <div className="section-panel-subtitle">Competência atual</div>
             </div>
-            <Link href="/months">Alterar mês</Link>
+            <Link href="/months" className="btn btn-ghost btn-sm">Alterar mês →</Link>
           </div>
-          <dl className="summary-list">
-            <div><dt>Despesas fixas previstas</dt><dd>{formatCurrency(current.fixedPlannedTotal)}</dd></div>
-            <div><dt>Despesas fixas pagas</dt><dd>{formatCurrency(current.fixedPaidTotal)}</dd></div>
-            <div><dt>Despesas variáveis</dt><dd>{formatCurrency(current.variableTotal)}</dd></div>
-            <div><dt>Parcelas ativas</dt><dd>{formatCurrency(current.installmentTotal)}</dd></div>
-            <div><dt>Investimentos acumulados</dt><dd>{formatCurrency(currentAccount?.investmentBalance)}</dd></div>
-            <div><dt>Patrimônio total</dt><dd>{formatCurrency(currentAccount?.netWorth)}</dd></div>
-          </dl>
-        </article>
+          <div className="section-panel-body">
+            <dl className="summary-list">
+              <div className="summary-list-item">
+                <dt className="summary-list-label">Despesas fixas previstas</dt>
+                <dd className="summary-list-value">{formatCurrency(current.fixedPlannedTotal)}</dd>
+              </div>
+              <div className="summary-list-item">
+                <dt className="summary-list-label">Despesas fixas pagas</dt>
+                <dd className="summary-list-value">{formatCurrency(current.fixedPaidTotal)}</dd>
+              </div>
+              <div className="summary-list-item">
+                <dt className="summary-list-label">Despesas variáveis</dt>
+                <dd className="summary-list-value">{formatCurrency(current.variableTotal)}</dd>
+              </div>
+              <div className="summary-list-item">
+                <dt className="summary-list-label">Parcelas ativas</dt>
+                <dd className="summary-list-value">{formatCurrency(current.installmentTotal)}</dd>
+              </div>
+              <div className="summary-list-item">
+                <dt className="summary-list-label">Investimentos acumulados</dt>
+                <dd className="summary-list-value">{formatCurrency(currentAccount?.investmentBalance)}</dd>
+              </div>
+              <div className="summary-list-item">
+                <dt className="summary-list-label">Patrimônio total</dt>
+                <dd className="summary-list-value" style={{ color: 'hsl(168, 76%, 28%)', fontSize: '1.05rem' }}>
+                  {formatCurrency(currentAccount?.netWorth)}
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </div>
 
-        <article className="panel">
-          <div className="section-head">
+        <div className="section-panel">
+          <div className="section-panel-header">
             <div>
-              <p className="eyebrow">Curva patrimonial</p>
-              <h2>Foco em investimentos</h2>
+              <div className="section-panel-title">Curva patrimonial</div>
+              <div className="section-panel-subtitle">Evolução dos investimentos</div>
             </div>
-            <Link href="/accounts">Ver aba Contas</Link>
+            <Link href="/accounts" className="btn btn-ghost btn-sm">Ver contas →</Link>
           </div>
-          <EChart option={chartOption} height={320} />
-        </article>
-      </section>
+          <div className="section-panel-body">
+            <EChart option={chartOption} height={320} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

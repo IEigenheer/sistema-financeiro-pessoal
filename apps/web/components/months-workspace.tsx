@@ -2,6 +2,10 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { formatCurrency, formatDate, formatMonth } from '../lib/format';
+import { PageHeader } from './page-header';
+import { StatCard } from './stat-card';
+import { Modal } from './modal';
+import { Tabs } from './tabs';
 
 const MONTH_OPTIONS = [
   { value: 1, label: 'Janeiro' },
@@ -18,11 +22,26 @@ const MONTH_OPTIONS = [
   { value: 12, label: 'Dezembro' },
 ];
 
+const TABS = [
+  { key: 'resumo', label: 'Resumo' },
+  { key: 'entradas', label: 'Entradas' },
+  { key: 'fixas', label: 'Despesas Fixas' },
+  { key: 'variaveis', label: 'Variáveis' },
+  { key: 'parcelas', label: 'Parcelas' },
+];
+
 export function MonthsWorkspace({ initialYear, initialMonth }: { initialYear?: number; initialMonth?: number }) {
   const [year, setYear] = useState<number | null>(initialYear ?? null);
   const [month, setMonth] = useState<number | null>(initialMonth ?? null);
   const [detail, setDetail] = useState<any>(null);
   const [categories, setCategories] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState('resumo');
+
+  // Modal states
+  const [incomeModalOpen, setIncomeModalOpen] = useState(false);
+  const [expenseModalOpen, setExpenseModalOpen] = useState(false);
+
+  // Form states
   const [incomeForm, setIncomeForm] = useState({ description: '', day: '', amount: '', kind: 'OTHER' });
   const [expenseForm, setExpenseForm] = useState({ expenseDate: '', description: '', categoryId: '', amount: '' });
   const [adjustmentForm, setAdjustmentForm] = useState({ investmentContributionOverride: '', investmentReturnAdjustment: '' });
@@ -65,12 +84,19 @@ export function MonthsWorkspace({ initialYear, initialMonth }: { initialYear?: n
   }, []);
 
   useEffect(() => {
-    if (!year || !month) {
-      return;
-    }
-
+    if (!year || !month) return;
     loadMonth(year, month).catch(() => undefined);
   }, [year, month]);
+
+  function navigateMonth(direction: -1 | 1) {
+    if (!month || !year) return;
+    let newMonth = month + direction;
+    let newYear = year;
+    if (newMonth < 1) { newMonth = 12; newYear--; }
+    if (newMonth > 12) { newMonth = 1; newYear++; }
+    setMonth(newMonth);
+    setYear(newYear);
+  }
 
   async function createIncome(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -84,6 +110,7 @@ export function MonthsWorkspace({ initialYear, initialMonth }: { initialYear?: n
       }),
     });
     setIncomeForm({ description: '', day: '', amount: '', kind: 'OTHER' });
+    setIncomeModalOpen(false);
     await loadMonth(year!, month!);
   }
 
@@ -98,6 +125,7 @@ export function MonthsWorkspace({ initialYear, initialMonth }: { initialYear?: n
       }),
     });
     setExpenseForm((current) => ({ ...current, description: '', amount: '' }));
+    setExpenseModalOpen(false);
     await loadMonth(year!, month!);
   }
 
@@ -130,162 +158,446 @@ export function MonthsWorkspace({ initialYear, initialMonth }: { initialYear?: n
     await loadMonth(year!, month!);
   }
 
+  async function handleAporteSave(value: number) {
+    await fetch(`/api/months/${year}/${month}/adjustments`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        investmentContributionOverride: value,
+        investmentReturnAdjustment: adjustmentForm.investmentReturnAdjustment
+          ? Number(adjustmentForm.investmentReturnAdjustment)
+          : null,
+      }),
+    });
+    await loadMonth(year!, month!);
+  }
+
   if (!detail || !year || !month) {
-    return <div className="panel">Carregando meses...</div>;
+    return (
+      <div className="content-stack">
+        <div className="stat-cards">
+          {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton skeleton-card" />)}
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="stack-xl">
-      <section className="hero">
-        <div>
-          <p className="eyebrow">Meses</p>
-          <h2 className="hero-title">Uma única aba operacional para navegar entre as competências.</h2>
-          <p className="muted">
-            O resumo do mês segue a aba mensal da planilha. O consolidado patrimonial usa o aporte efetivo definido em Contas quando houver ajuste manual.
-          </p>
-        </div>
-        <div className="hero-actions">
-          <label>
-            Mês selecionado
-            <select value={month} onChange={(event) => setMonth(Number(event.target.value))}>
-              {MONTH_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
+    <div className="content-stack">
+      {/* Header with month navigation */}
+      <PageHeader
+        title={formatMonth(month, year)}
+        subtitle="Visão mensal com entradas, despesas, parcelas e reflexo patrimonial"
+        actions={
+          <>
+            <div className="month-nav">
+              <button className="month-nav-btn" onClick={() => navigateMonth(-1)} type="button" title="Mês anterior">◀</button>
+              <select
+                className="month-nav-select"
+                value={month}
+                onChange={(e) => setMonth(Number(e.target.value))}
+              >
+                {MONTH_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <button className="month-nav-btn" onClick={() => navigateMonth(1)} type="button" title="Próximo mês">▶</button>
+            </div>
+            <button className="btn btn-primary" onClick={() => setIncomeModalOpen(true)} type="button">+ Entrada</button>
+            <button className="btn btn-secondary" onClick={() => setExpenseModalOpen(true)} type="button">+ Gasto</button>
+          </>
+        }
+      />
+
+      {/* Stat Cards */}
+      <div className="stat-cards">
+        <StatCard
+          icon="💵"
+          label="Entradas"
+          value={detail.entriesTotal}
+          formula="Soma de salário + entradas extras do mês"
+          color="emerald"
+        />
+        <StatCard
+          icon="💰"
+          label="Saldo disponível"
+          value={detail.availableBalance}
+          formula="Entradas − fixas pagas − variáveis − parcelas"
+          color="sky"
+        />
+        <StatCard
+          icon="📈"
+          label="Aporte do mês"
+          value={detail.investmentContribution}
+          formula="Clique para sobrescrever o aporte deste mês"
+          color="amber"
+          editable
+          onSave={handleAporteSave}
+        />
+        <StatCard
+          icon="🏦"
+          label="Aporte efetivo"
+          value={detail.effectiveInvestmentContribution}
+          formula="Aporte usado no consolidado patrimonial (aba Contas)"
+          color="violet"
+        />
+      </div>
+
+      {/* Tabs */}
+      <div className="section-panel">
+        <Tabs tabs={TABS} active={activeTab} onChange={setActiveTab} />
+
+        {activeTab === 'resumo' && (
+          <div className="section-panel-body">
+            <div className="two-col">
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '16px' }}>
+                  Resumo do mês
+                </h3>
+                <dl className="summary-list">
+                  <div className="summary-list-item">
+                    <dt className="summary-list-label">Fixas previstas</dt>
+                    <dd className="summary-list-value">{formatCurrency(detail.fixedPlannedTotal)}</dd>
+                  </div>
+                  <div className="summary-list-item">
+                    <dt className="summary-list-label">Fixas pagas</dt>
+                    <dd className="summary-list-value">{formatCurrency(detail.fixedPaidTotal)}</dd>
+                  </div>
+                  <div className="summary-list-item">
+                    <dt className="summary-list-label">Variáveis</dt>
+                    <dd className="summary-list-value">{formatCurrency(detail.variableTotal)}</dd>
+                  </div>
+                  <div className="summary-list-item">
+                    <dt className="summary-list-label">Parcelas</dt>
+                    <dd className="summary-list-value">{formatCurrency(detail.installmentTotal)}</dd>
+                  </div>
+                  <div className="summary-list-item">
+                    <dt className="summary-list-label">Conta corrente acumulada</dt>
+                    <dd className="summary-list-value">{formatCurrency(detail.checkingBalance)}</dd>
+                  </div>
+                  <div className="summary-list-item">
+                    <dt className="summary-list-label">Investimentos</dt>
+                    <dd className="summary-list-value">{formatCurrency(detail.investmentBalance)}</dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '16px' }}>
+                  Ajustes do consolidado
+                </h3>
+                <form onSubmit={saveAdjustment} className="form-stack">
+                  <div className="form-field">
+                    <label className="form-label">Aporte sobrescrito em Contas</label>
+                    <span className="form-hint">Altera apenas o consolidado patrimonial</span>
+                    <input
+                      className="form-input"
+                      type="number"
+                      value={adjustmentForm.investmentContributionOverride}
+                      onChange={(e) => setAdjustmentForm({ ...adjustmentForm, investmentContributionOverride: e.target.value })}
+                      placeholder="Deixe vazio para usar o operacional"
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label className="form-label">Ajuste manual investimento</label>
+                    <span className="form-hint">Correção de rendimento ou ajuste avulso</span>
+                    <input
+                      className="form-input"
+                      type="number"
+                      value={adjustmentForm.investmentReturnAdjustment}
+                      onChange={(e) => setAdjustmentForm({ ...adjustmentForm, investmentReturnAdjustment: e.target.value })}
+                      placeholder="0"
+                    />
+                  </div>
+                  <button className="btn btn-primary" type="submit">Salvar ajustes</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'entradas' && (
+          <div className="section-panel-body-flush">
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Descrição</th>
+                    <th>Dia</th>
+                    <th>Tipo</th>
+                    <th style={{ textAlign: 'right' }}>Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detail.incomes.length === 0 && (
+                    <tr>
+                      <td colSpan={4}>
+                        <div className="empty-state">
+                          <div className="empty-state-icon">📭</div>
+                          <div className="empty-state-text">Nenhuma entrada registrada neste mês</div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  {detail.incomes.map((item: any, index: number) => (
+                    <tr key={item.id ?? `${item.description}-${index}`}>
+                      <td>{item.description}</td>
+                      <td>{item.day ?? '—'}</td>
+                      <td>
+                        <span className="badge badge-success">
+                          {item.kind === 'FIXED_EXTRA' ? 'Fixa extra' : item.kind === 'VARIABLE_EXTRA' ? 'Variável extra' : 'Outra'}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(item.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'fixas' && (
+          <div className="section-panel-body-flush">
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Descrição</th>
+                    <th>Categoria</th>
+                    <th style={{ textAlign: 'right' }}>Previsto</th>
+                    <th style={{ textAlign: 'right' }}>Pago</th>
+                    <th style={{ textAlign: 'center' }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detail.fixedExpenses.map((item: any) => (
+                    <tr key={item.id}>
+                      <td>{item.description}</td>
+                      <td>{item.categoryName}</td>
+                      <td style={{ textAlign: 'right' }}>{formatCurrency(item.plannedAmount)}</td>
+                      <td style={{ textAlign: 'right' }}>{formatCurrency(item.paidAmount)}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button
+                          className={`badge ${item.status === 'PAID' ? 'badge-success' : 'badge-warning'}`}
+                          onClick={() => toggleFixedExpense(item, item.status !== 'PAID')}
+                          type="button"
+                        >
+                          {item.status === 'PAID' ? '✓ Pago' : '⏳ Pendente'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'variaveis' && (
+          <div className="section-panel-body-flush">
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Descrição</th>
+                    <th>Categoria</th>
+                    <th style={{ textAlign: 'right' }}>Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detail.variableExpenses.length === 0 && (
+                    <tr>
+                      <td colSpan={4}>
+                        <div className="empty-state">
+                          <div className="empty-state-icon">🧾</div>
+                          <div className="empty-state-text">Nenhum gasto variável registrado</div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  {detail.variableExpenses.map((item: any) => (
+                    <tr key={item.id}>
+                      <td>{formatDate(item.expenseDate)}</td>
+                      <td>{item.description}</td>
+                      <td>{item.categoryName}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(item.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'parcelas' && (
+          <div className="section-panel-body-flush">
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Descrição</th>
+                    <th>Categoria</th>
+                    <th>Parcela</th>
+                    <th>Origem</th>
+                    <th style={{ textAlign: 'right' }}>Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detail.activeInstallments.length === 0 && (
+                    <tr>
+                      <td colSpan={5}>
+                        <div className="empty-state">
+                          <div className="empty-state-icon">📋</div>
+                          <div className="empty-state-text">Nenhuma parcela ativa neste mês</div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  {detail.activeInstallments.map((item: any) => (
+                    <tr key={item.id}>
+                      <td>{item.description}</td>
+                      <td>{item.categoryName}</td>
+                      <td>
+                        <span className="badge badge-success">
+                          {item.installmentNumber}/{item.installmentCount}
+                        </span>
+                      </td>
+                      <td>{item.paymentSource}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(item.installmentAmount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Income Modal */}
+      <Modal
+        title="Nova entrada"
+        open={incomeModalOpen}
+        onClose={() => setIncomeModalOpen(false)}
+        footer={
+          <>
+            <button className="btn btn-ghost" onClick={() => setIncomeModalOpen(false)} type="button">Cancelar</button>
+            <button className="btn btn-primary" form="income-form" type="submit">Adicionar</button>
+          </>
+        }
+      >
+        <form id="income-form" onSubmit={createIncome} className="form-stack">
+          <div className="form-field">
+            <label className="form-label">Descrição</label>
+            <input
+              className="form-input"
+              value={incomeForm.description}
+              onChange={(e) => setIncomeForm({ ...incomeForm, description: e.target.value })}
+              placeholder="Ex: Salário, Freelance..."
+              required
+            />
+          </div>
+          <div className="form-row">
+            <div className="form-field">
+              <label className="form-label">Dia</label>
+              <input
+                className="form-input"
+                type="number"
+                value={incomeForm.day}
+                onChange={(e) => setIncomeForm({ ...incomeForm, day: e.target.value })}
+                placeholder="Opcional"
+                min={1}
+                max={31}
+              />
+            </div>
+            <div className="form-field">
+              <label className="form-label">Valor</label>
+              <input
+                className="form-input"
+                type="number"
+                value={incomeForm.amount}
+                onChange={(e) => setIncomeForm({ ...incomeForm, amount: e.target.value })}
+                placeholder="0,00"
+                required
+              />
+            </div>
+          </div>
+          <div className="form-field">
+            <label className="form-label">Tipo</label>
+            <select
+              className="form-select"
+              value={incomeForm.kind}
+              onChange={(e) => setIncomeForm({ ...incomeForm, kind: e.target.value })}
+            >
+              <option value="OTHER">Outra</option>
+              <option value="FIXED_EXTRA">Fixa extra</option>
+              <option value="VARIABLE_EXTRA">Variável extra</option>
+            </select>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Expense Modal */}
+      <Modal
+        title="Lançar gasto variável"
+        open={expenseModalOpen}
+        onClose={() => setExpenseModalOpen(false)}
+        footer={
+          <>
+            <button className="btn btn-ghost" onClick={() => setExpenseModalOpen(false)} type="button">Cancelar</button>
+            <button className="btn btn-primary" form="expense-form" type="submit">Lançar</button>
+          </>
+        }
+      >
+        <form id="expense-form" onSubmit={createExpense} className="form-stack">
+          <div className="form-row">
+            <div className="form-field">
+              <label className="form-label">Data</label>
+              <input
+                className="form-input"
+                type="date"
+                value={expenseForm.expenseDate}
+                onChange={(e) => setExpenseForm({ ...expenseForm, expenseDate: e.target.value })}
+                required
+              />
+            </div>
+            <div className="form-field">
+              <label className="form-label">Valor</label>
+              <input
+                className="form-input"
+                type="number"
+                value={expenseForm.amount}
+                onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
+                placeholder="0,00"
+                required
+              />
+            </div>
+          </div>
+          <div className="form-field">
+            <label className="form-label">Descrição</label>
+            <input
+              className="form-input"
+              value={expenseForm.description}
+              onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
+              placeholder="Ex: Mercado, Restaurante..."
+              required
+            />
+          </div>
+          <div className="form-field">
+            <label className="form-label">Categoria</label>
+            <select
+              className="form-select"
+              value={expenseForm.categoryId}
+              onChange={(e) => setExpenseForm({ ...expenseForm, categoryId: e.target.value })}
+            >
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
             </select>
-          </label>
-        </div>
-      </section>
-
-      <section className="card-grid">
-        <article className="panel"><span className="card-label">Entradas</span><strong>{formatCurrency(detail.entriesTotal)}</strong></article>
-        <article className="panel"><span className="card-label">Saldo disponível</span><strong>{formatCurrency(detail.availableBalance)}</strong></article>
-        <article className="panel"><span className="card-label">Aporte do mês</span><strong>{formatCurrency(detail.investmentContribution)}</strong></article>
-        <article className="panel"><span className="card-label">Aporte efetivo em Contas</span><strong>{formatCurrency(detail.effectiveInvestmentContribution)}</strong></article>
-      </section>
-
-      <section className="two-columns">
-        <article className="panel">
-          <h2>{formatMonth(month, year)}</h2>
-          <dl className="summary-list">
-            <div><dt>Fixas previstas</dt><dd>{formatCurrency(detail.fixedPlannedTotal)}</dd></div>
-            <div><dt>Fixas pagas</dt><dd>{formatCurrency(detail.fixedPaidTotal)}</dd></div>
-            <div><dt>Variáveis</dt><dd>{formatCurrency(detail.variableTotal)}</dd></div>
-            <div><dt>Parcelas</dt><dd>{formatCurrency(detail.installmentTotal)}</dd></div>
-            <div><dt>Conta corrente acumulada</dt><dd>{formatCurrency(detail.checkingBalance)}</dd></div>
-            <div><dt>Investimentos</dt><dd>{formatCurrency(detail.investmentBalance)}</dd></div>
-          </dl>
-        </article>
-        <article className="panel">
-          <h2>Ajustes do consolidado</h2>
-          <form onSubmit={saveAdjustment} className="form-grid compact compact-2">
-            <label>
-              Aporte sobrescrito em Contas
-              <input type="number" value={adjustmentForm.investmentContributionOverride} onChange={(event) => setAdjustmentForm({ ...adjustmentForm, investmentContributionOverride: event.target.value })} />
-            </label>
-            <label>
-              Ajuste manual investimento
-              <input type="number" value={adjustmentForm.investmentReturnAdjustment} onChange={(event) => setAdjustmentForm({ ...adjustmentForm, investmentReturnAdjustment: event.target.value })} />
-            </label>
-            <button className="button" type="submit">Salvar ajustes</button>
-          </form>
-          <p className="muted small-note">
-            A aba do mês continua exibindo o aporte operacional da competência. O campo acima altera apenas o consolidado patrimonial da aba Contas.
-          </p>
-        </article>
-      </section>
-
-      <section className="two-columns">
-        <article className="panel">
-          <h2>Entradas</h2>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Descrição</th><th>Dia</th><th>Valor</th></tr></thead>
-              <tbody>
-                {detail.incomes.map((item: any, index: number) => (
-                  <tr key={item.id ?? `${item.description}-${index}`}>
-                    <td>{item.description}</td>
-                    <td>{item.day ?? '-'}</td>
-                    <td>{formatCurrency(item.amount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
-          <form onSubmit={createIncome} className="form-grid compact compact-5">
-            <label>Descrição<input value={incomeForm.description} onChange={(event) => setIncomeForm({ ...incomeForm, description: event.target.value })} /></label>
-            <label>Dia<input type="number" value={incomeForm.day} onChange={(event) => setIncomeForm({ ...incomeForm, day: event.target.value })} /></label>
-            <label>Valor<input type="number" value={incomeForm.amount} onChange={(event) => setIncomeForm({ ...incomeForm, amount: event.target.value })} /></label>
-            <label>Tipo<select value={incomeForm.kind} onChange={(event) => setIncomeForm({ ...incomeForm, kind: event.target.value })}><option value="FIXED_EXTRA">Fixa extra</option><option value="VARIABLE_EXTRA">Variável extra</option><option value="OTHER">Outra</option></select></label>
-            <button className="button" type="submit">Adicionar entrada</button>
-          </form>
-        </article>
-        <article className="panel">
-          <h2>Parcelas ativas</h2>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Descrição</th><th>Categoria</th><th>Parcela</th><th>Valor</th><th>Origem</th></tr></thead>
-              <tbody>
-                {detail.activeInstallments.map((item: any) => (
-                  <tr key={item.id}>
-                    <td>{item.description}</td>
-                    <td>{item.categoryName}</td>
-                    <td>{item.installmentNumber}/{item.installmentCount}</td>
-                    <td>{formatCurrency(item.installmentAmount)}</td>
-                    <td>{item.paymentSource}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </article>
-      </section>
-
-      <section className="two-columns">
-        <article className="panel">
-          <h2>Despesas fixas</h2>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Descrição</th><th>Categoria</th><th>Previsto</th><th>Pago</th><th>Status</th></tr></thead>
-              <tbody>
-                {detail.fixedExpenses.map((item: any) => (
-                  <tr key={item.id}>
-                    <td>{item.description}</td>
-                    <td>{item.categoryName}</td>
-                    <td>{formatCurrency(item.plannedAmount)}</td>
-                    <td>{formatCurrency(item.paidAmount)}</td>
-                    <td><button className={`chip ${item.status === 'PAID' ? 'chip-paid' : 'chip-pending'}`} onClick={() => toggleFixedExpense(item, item.status !== 'PAID')} type="button">{item.status === 'PAID' ? 'Pago' : 'Pendente'}</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </article>
-        <article className="panel">
-          <h2>Gastos variáveis</h2>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th></tr></thead>
-              <tbody>
-                {detail.variableExpenses.map((item: any) => (
-                  <tr key={item.id}>
-                    <td>{formatDate(item.expenseDate)}</td>
-                    <td>{item.description}</td>
-                    <td>{item.categoryName}</td>
-                    <td>{formatCurrency(item.amount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <form onSubmit={createExpense} className="form-grid compact compact-5">
-            <label>Data<input type="date" value={expenseForm.expenseDate} onChange={(event) => setExpenseForm({ ...expenseForm, expenseDate: event.target.value })} /></label>
-            <label>Descrição<input value={expenseForm.description} onChange={(event) => setExpenseForm({ ...expenseForm, description: event.target.value })} /></label>
-            <label>Categoria<select value={expenseForm.categoryId} onChange={(event) => setExpenseForm({ ...expenseForm, categoryId: event.target.value })}>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-            <label>Valor<input type="number" value={expenseForm.amount} onChange={(event) => setExpenseForm({ ...expenseForm, amount: event.target.value })} /></label>
-            <button className="button" type="submit">Lançar gasto</button>
-          </form>
-        </article>
-      </section>
+        </form>
+      </Modal>
     </div>
   );
 }

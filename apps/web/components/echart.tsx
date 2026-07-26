@@ -12,7 +12,7 @@ export function EChart({ option, height = 360 }: { option: echarts.EChartsCoreOp
     }
 
     const chart = echarts.init(ref.current, undefined, { renderer: 'canvas' });
-    chart.setOption(option);
+    chart.setOption(option, true);
 
     const observer = new ResizeObserver(() => {
       chart.resize();
