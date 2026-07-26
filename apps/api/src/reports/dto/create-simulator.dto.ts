@@ -16,7 +16,7 @@ class SimulatorExtraEntryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(36)
+  @Max(600)
   monthIndex!: number;
 
   @IsString()
@@ -65,7 +65,7 @@ export class CreateSimulatorDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(36)
+  @Max(600)
   monthsToSimulate!: number;
 
   @Type(() => Number)
@@ -78,13 +78,13 @@ export class CreateSimulatorDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(36)
+  @Max(600)
   purchaseInstallmentCount!: number;
 
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(36)
+  @Max(600)
   purchaseStartMonthIndex!: number;
 
   @IsOptional()

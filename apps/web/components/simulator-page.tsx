@@ -1,12 +1,33 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { EChart } from './echart';
 import { PageHeader } from './page-header';
 import { formatCurrency, formatDate } from '../lib/format';
 
+const MONTH_OPTIONS = [
+  { value: 1, label: 'Janeiro' },
+  { value: 2, label: 'Fevereiro' },
+  { value: 3, label: 'Março' },
+  { value: 4, label: 'Abril' },
+  { value: 5, label: 'Maio' },
+  { value: 6, label: 'Junho' },
+  { value: 7, label: 'Julho' },
+  { value: 8, label: 'Agosto' },
+  { value: 9, label: 'Setembro' },
+  { value: 10, label: 'Outubro' },
+  { value: 11, label: 'Novembro' },
+  { value: 12, label: 'Dezembro' },
+];
+
+const MONTH_NAMES = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
+
 function extractSeries(rows: any[], scenario: 'base' | 'comparison', variant: 'baseline' | 'purchase' | 'extras' | 'full', metric: 'wealth' | 'investment') {
-  return rows.map((row) => row[scenario][variant][metric]);
+  if (!Array.isArray(rows)) return [];
+  return rows.map((row) => row?.[scenario]?.[variant]?.[metric] ?? 0);
 }
 
 function roundNumber(value: number) {
@@ -20,6 +41,10 @@ export function SimulatorPage() {
   const [includePurchase, setIncludePurchase] = useState(false);
   const [includeExtraEntries, setIncludeExtraEntries] = useState(false);
   const [metric, setMetric] = useState<'wealth' | 'investment'>('investment');
+
+  // Table options: grouping & expanding
+  const [tableView, setTableView] = useState<'annual' | 'monthly'>('annual');
+  const [expandedYears, setExpandedYears] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     fetch('/api/reports/overview', { cache: 'no-store' })
@@ -54,9 +79,44 @@ export function SimulatorPage() {
       body: JSON.stringify({ ...form, investmentOnly: metric === 'investment' }),
     })
       .then((response) => response.json())
-      .then(setResult)
+      .then((data) => {
+        if (data && Array.isArray(data.rows)) {
+          setResult(data);
+        }
+      })
       .catch(() => undefined);
   }, [form, metric]);
+
+  // Compute Target Month & Year from startMonth + monthsToSimulate
+  const targetDateInfo = useMemo(() => {
+    if (!overview || !form) return { month: 12, year: 2027 };
+    const startYr = overview.year;
+    const startMo = form.startMonth || 1;
+    const targetDate = new Date(startYr, startMo - 1 + form.monthsToSimulate, 1);
+    return {
+      month: targetDate.getMonth() + 1,
+      year: targetDate.getFullYear(),
+    };
+  }, [overview, form?.startMonth, form?.monthsToSimulate]);
+
+  // Options for simulation months (for purchase start and extra entries)
+  const simulationMonthOptions = useMemo(() => {
+    if (!overview || !form) return [];
+    const startYr = overview.year;
+    const startMo = form.startMonth || 1;
+    return Array.from({ length: form.monthsToSimulate }, (_, i) => {
+      const idx = i + 1;
+      const date = new Date(startYr, startMo - 1 + idx, 1);
+      const mStr = String(date.getMonth() + 1).padStart(2, '0');
+      const yStr = date.getFullYear();
+      const monthName = MONTH_NAMES[date.getMonth()];
+      return {
+        index: idx,
+        label: monthName,
+        monthYear: `${mStr}/${yStr}`,
+      };
+    });
+  }, [overview, form?.startMonth, form?.monthsToSimulate]);
 
   const activeVariant: 'baseline' | 'purchase' | 'extras' | 'full' = includePurchase
     ? includeExtraEntries ? 'full' : 'purchase'
@@ -157,7 +217,7 @@ export function SimulatorPage() {
       series: [{
         name: 'Diferença (comparativo − base)',
         type: 'bar',
-        data: rows.map((row: any) => roundNumber(row.comparison[activeVariant][metric] - row.base[activeVariant][metric])),
+        data: rows.map((row: any) => roundNumber((row?.comparison?.[activeVariant]?.[metric] ?? 0) - (row?.base?.[activeVariant]?.[metric] ?? 0))),
         itemStyle: {
           color: (params: any) => params.value >= 0 ? 'hsl(168, 76%, 28%)' : 'hsl(356, 75%, 53%)',
         },
@@ -167,13 +227,53 @@ export function SimulatorPage() {
     };
   }, [activeVariant, metric, result]);
 
-  // Compute result summary
-  const lastRow = result?.rows?.length > 0 ? result.rows[result.rows.length - 1] : null;
-  const finalDelta = lastRow ? roundNumber(lastRow.comparison[activeVariant][metric] - lastRow.base[activeVariant][metric]) : 0;
-  const baseTotal = lastRow ? lastRow.base[activeVariant][metric] : 0;
-  const compTotal = lastRow ? lastRow.comparison[activeVariant][metric] : 0;
+  // Group projection rows by Year for long projections
+  const yearlyGroupedRows = useMemo(() => {
+    const rows = result?.rows ?? [];
+    if (rows.length === 0) return [];
 
-  if (!form || !overview || !result) {
+    const groupsMap = new Map<number, any[]>();
+    rows.forEach((row: any) => {
+      const year = new Date(row.date).getFullYear();
+      if (!groupsMap.has(year)) {
+        groupsMap.set(year, []);
+      }
+      groupsMap.get(year)!.push(row);
+    });
+
+    const yearGroups: any[] = [];
+    groupsMap.forEach((monthRows, year) => {
+      const existingInstallmentsTotal = monthRows.reduce((sum, r) => sum + (r.existingInstallments || 0), 0);
+      const purchaseInstallmentTotal = monthRows.reduce((sum, r) => sum + (r.purchaseInstallment || 0), 0);
+      const baseExtraTotal = monthRows.reduce((sum, r) => sum + (r.baseExtra || 0), 0);
+      const comparisonExtraTotal = monthRows.reduce((sum, r) => sum + (r.comparisonExtra || 0), 0);
+      
+      const lastMonthRow = monthRows[monthRows.length - 1];
+      const finalBase = lastMonthRow?.base?.[activeVariant]?.[metric] ?? 0;
+      const finalComparison = lastMonthRow?.comparison?.[activeVariant]?.[metric] ?? 0;
+
+      yearGroups.push({
+        year,
+        monthsCount: monthRows.length,
+        monthRows,
+        existingInstallmentsTotal,
+        purchaseInstallmentTotal,
+        baseExtraTotal,
+        comparisonExtraTotal,
+        finalBase,
+        finalComparison,
+      });
+    });
+
+    return yearGroups;
+  }, [result, activeVariant, metric]);
+
+  const lastRow = result?.rows?.length > 0 ? result.rows[result.rows.length - 1] : null;
+  const finalDelta = lastRow ? roundNumber((lastRow?.comparison?.[activeVariant]?.[metric] ?? 0) - (lastRow?.base?.[activeVariant]?.[metric] ?? 0)) : 0;
+  const baseTotal = lastRow ? (lastRow?.base?.[activeVariant]?.[metric] ?? 0) : 0;
+  const compTotal = lastRow ? (lastRow?.comparison?.[activeVariant]?.[metric] ?? 0) : 0;
+
+  if (!form || !overview) {
     return (
       <div className="content-stack">
         <div className="skeleton skeleton-card" style={{ height: 300 }} />
@@ -182,31 +282,59 @@ export function SimulatorPage() {
   }
 
   function updateField(field: string, value: any) {
-    setForm({ ...form, [field]: value });
+    setForm((prev: any) => ({ ...prev, [field]: value }));
   }
 
-  function updateExtraEntry(index: number, field: string, value: unknown) {
-    const next = [...form.extraEntries];
-    next[index] = { ...next[index], [field]: value };
-    setForm({ ...form, extraEntries: next });
+  // Update target month/year -> re-calculates monthsToSimulate
+  function handleTargetDateChange(newTargetMonth: number, newTargetYear: number) {
+    if (!overview || !form) return;
+    const startYr = overview.year;
+    const startMo = form.startMonth || 1;
+    const diff = (newTargetYear - startYr) * 12 + (newTargetMonth - startMo);
+    const monthsCount = Math.max(1, Math.min(600, diff));
+    updateField('monthsToSimulate', monthsCount);
   }
 
-  function removeExtraEntry(index: number) {
-    setForm({
-      ...form,
-      extraEntries: form.extraEntries.filter((_: unknown, i: number) => i !== index),
-    });
+  function updateExtraEntry(id: string, field: string, value: any) {
+    setForm((prev: any) => ({
+      ...prev,
+      extraEntries: prev.extraEntries.map((item: any) =>
+        item.id === id ? { ...item, [field]: value } : item
+      ),
+    }));
+  }
+
+  function removeExtraEntry(id: string) {
+    setForm((prev: any) => ({
+      ...prev,
+      extraEntries: prev.extraEntries.filter((item: any) => item.id !== id),
+    }));
   }
 
   function addExtraEntry() {
-    setForm({
-      ...form,
+    const newId = `extra_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    setForm((prev: any) => ({
+      ...prev,
       extraEntries: [
-        ...form.extraEntries,
-        { monthIndex: 1, label: 'Nova entrada', amount: 0, scenario: 'both' },
+        ...prev.extraEntries,
+        { id: newId, monthIndex: 1, label: 'Nova entrada', amount: 0, scenario: 'both' },
       ],
+    }));
+  }
+
+  function toggleYearExpand(year: number) {
+    setExpandedYears((prev) => {
+      const next = new Set(prev);
+      if (next.has(year)) {
+        next.delete(year);
+      } else {
+        next.add(year);
+      }
+      return next;
     });
   }
+
+  const yearOptions = Array.from({ length: 45 }, (_, i) => overview.year + i);
 
   return (
     <div className="content-stack">
@@ -265,6 +393,46 @@ export function SimulatorPage() {
                   <input className="form-input" type="number" value={form.comparisonMonthlyInvestment} onChange={(e) => updateField('comparisonMonthlyInvestment', Number(e.target.value))} />
                 </div>
               </div>
+
+              {/* Mês de partida */}
+              <div className="form-field">
+                <label className="form-label">Mês de partida</label>
+                <span className="form-hint">Início da simulação</span>
+                <select className="form-select" value={form.startMonth} onChange={(e) => updateField('startMonth', Number(e.target.value))}>
+                  {MONTH_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label} / {overview?.year ?? 2026}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Mês / Ano Alvo */}
+              <div className="form-field">
+                <label className="form-label">Mês / Ano alvo da projeção</label>
+                <span className="form-hint">Selecione o mês e ano final desejado</span>
+                <div className="form-row" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                  <select
+                    className="form-select"
+                    value={targetDateInfo.month}
+                    onChange={(e) => handleTargetDateChange(Number(e.target.value), targetDateInfo.year)}
+                  >
+                    {MONTH_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <select
+                    className="form-select"
+                    value={targetDateInfo.year}
+                    onChange={(e) => handleTargetDateChange(targetDateInfo.month, Number(e.target.value))}
+                  >
+                    {yearOptions.map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div className="form-row">
                 <div className="form-field">
                   <label className="form-label">Rendimento mensal</label>
@@ -272,18 +440,15 @@ export function SimulatorPage() {
                   <input className="form-input" type="number" step="0.001" value={form.monthlyReturnRate} onChange={(e) => updateField('monthlyReturnRate', Number(e.target.value))} />
                 </div>
                 <div className="form-field">
-                  <label className="form-label">Meses simulados</label>
-                  <span className="form-hint">Horizonte da simulação</span>
-                  <input className="form-input" type="number" value={form.monthsToSimulate} onChange={(e) => updateField('monthsToSimulate', Number(e.target.value))} />
+                  <label className="form-label">Meses simulados 🔒</label>
+                  <span className="form-hint">Calculado automaticamente</span>
+                  <input
+                    className="form-input"
+                    type="text"
+                    readOnly
+                    value={`${form.monthsToSimulate} meses`}
+                  />
                 </div>
-              </div>
-              <div className="form-field">
-                <label className="form-label">Mês de partida</label>
-                <select className="form-select" value={form.startMonth} onChange={(e) => updateField('startMonth', Number(e.target.value))}>
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <option key={i + 1} value={i + 1}>{i + 1}</option>
-                  ))}
-                </select>
               </div>
             </div>
           </div>
@@ -314,9 +479,19 @@ export function SimulatorPage() {
                 </div>
               </div>
               <div className="form-field">
-                <label className="form-label">Mês de início da compra</label>
-                <span className="form-hint">Índice do mês na simulação</span>
-                <input className="form-input" type="number" value={form.purchaseStartMonthIndex} onChange={(e) => updateField('purchaseStartMonthIndex', Number(e.target.value))} />
+                <label className="form-label">Mês / Ano da compra</label>
+                <span className="form-hint">Selecione o mês do impacto</span>
+                <select
+                  className="form-select"
+                  value={form.purchaseStartMonthIndex}
+                  onChange={(e) => updateField('purchaseStartMonthIndex', Number(e.target.value))}
+                >
+                  {simulationMonthOptions.map((opt) => (
+                    <option key={opt.index} value={opt.index}>
+                      {opt.monthYear} ({opt.label})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
@@ -413,62 +588,165 @@ export function SimulatorPage() {
             </div>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {form.extraEntries.map((entry: any, index: number) => (
-              <div className="extra-entry-card" key={`${entry.label}-${index}`}>
-                <div className="form-field">
-                  <label className="form-label">Mês</label>
-                  <input className="form-input" type="number" value={entry.monthIndex} onChange={(e) => updateExtraEntry(index, 'monthIndex', Number(e.target.value))} />
+            {form.extraEntries.map((entry: any) => {
+              const entryId = entry.id;
+              return (
+                <div className="extra-entry-card" key={entryId}>
+                  <div className="form-field" style={{ minWidth: '160px' }}>
+                    <label className="form-label">Mês / Ano</label>
+                    <select
+                      className="form-select"
+                      value={entry.monthIndex}
+                      onChange={(e) => updateExtraEntry(entryId, 'monthIndex', Number(e.target.value))}
+                    >
+                      {simulationMonthOptions.map((opt) => (
+                        <option key={opt.index} value={opt.index}>
+                          {opt.monthYear} ({opt.label})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-field" style={{ flex: 2 }}>
+                    <label className="form-label">Descrição</label>
+                    <input
+                      className="form-input"
+                      value={entry.label}
+                      onChange={(e) => updateExtraEntry(entryId, 'label', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label className="form-label">Valor</label>
+                    <input
+                      className="form-input"
+                      type="number"
+                      value={entry.amount}
+                      onChange={(e) => updateExtraEntry(entryId, 'amount', Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label className="form-label">Cenário</label>
+                    <select
+                      className="form-select"
+                      value={entry.scenario}
+                      onChange={(e) => updateExtraEntry(entryId, 'scenario', e.target.value)}
+                    >
+                      <option value="both">Ambos</option>
+                      <option value="base">Só base</option>
+                      <option value="comparison">Só comparativo</option>
+                    </select>
+                  </div>
+                  <button
+                    className="btn btn-icon btn-danger"
+                    type="button"
+                    onClick={() => removeExtraEntry(entryId)}
+                    title="Remover"
+                  >
+                    🗑️
+                  </button>
                 </div>
-                <div className="form-field" style={{ flex: 2 }}>
-                  <label className="form-label">Descrição</label>
-                  <input className="form-input" value={entry.label} onChange={(e) => updateExtraEntry(index, 'label', e.target.value)} />
-                </div>
-                <div className="form-field">
-                  <label className="form-label">Valor</label>
-                  <input className="form-input" type="number" value={entry.amount} onChange={(e) => updateExtraEntry(index, 'amount', Number(e.target.value))} />
-                </div>
-                <div className="form-field">
-                  <label className="form-label">Cenário</label>
-                  <select className="form-select" value={entry.scenario} onChange={(e) => updateExtraEntry(index, 'scenario', e.target.value)}>
-                    <option value="both">Ambos</option>
-                    <option value="base">Só base</option>
-                    <option value="comparison">Só comparativo</option>
-                  </select>
-                </div>
-                <button className="btn btn-icon btn-danger" type="button" onClick={() => removeExtraEntry(index)} title="Remover">
-                  🗑️
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
 
-      {/* Data table */}
+      {/* Projection Table */}
       <div className="section-panel">
         <div className="section-panel-header">
           <div>
             <div className="section-panel-title">Tabela de projeção</div>
-            <div className="section-panel-subtitle">Dados detalhados mês a mês</div>
+            <div className="section-panel-subtitle">
+              {tableView === 'annual' ? 'Visão consolidada por Ano (clique para expandir os meses)' : 'Visão detalhada mês a mês'}
+            </div>
+          </div>
+          <div className="toggle-group">
+            <button
+              className={`toggle-item ${tableView === 'annual' ? 'toggle-item-active' : ''}`}
+              onClick={() => setTableView('annual')}
+              type="button"
+            >
+              Visão por Anos
+            </button>
+            <button
+              className={`toggle-item ${tableView === 'monthly' ? 'toggle-item-active' : ''}`}
+              onClick={() => setTableView('monthly')}
+              type="button"
+            >
+              Visão Mensal
+            </button>
           </div>
         </div>
+
         <div className="section-panel-body-flush">
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Mês</th>
-                  <th>Data</th>
+                  <th>{tableView === 'annual' ? 'Ano' : 'Mês'}</th>
+                  <th>Data / Período</th>
                   <th style={{ textAlign: 'right' }}>Parcelas existentes</th>
                   <th style={{ textAlign: 'right' }}>Compra</th>
                   <th style={{ textAlign: 'right' }}>Extras base</th>
                   <th style={{ textAlign: 'right' }}>Extras comp.</th>
-                  <th style={{ textAlign: 'right' }}>Base</th>
-                  <th style={{ textAlign: 'right' }}>Comparativo</th>
+                  <th style={{ textAlign: 'right' }}>Base (Final)</th>
+                  <th style={{ textAlign: 'right' }}>Comparativo (Final)</th>
                 </tr>
               </thead>
               <tbody>
-                {result.rows.map((row: any) => (
+                {/* ANNUAL GROUPED VIEW */}
+                {tableView === 'annual' && yearlyGroupedRows.map((yearGroup) => {
+                  const isExpanded = expandedYears.has(yearGroup.year);
+
+                  return (
+                    <React.Fragment key={yearGroup.year}>
+                      {/* Year summary row */}
+                      <tr
+                        className="table-row-expandable"
+                        onClick={() => toggleYearExpand(yearGroup.year)}
+                      >
+                        <td style={{ fontWeight: 700 }}>
+                          {isExpanded ? '▼ ' : '▶ '}Ano {yearGroup.year}
+                        </td>
+                        <td style={{ color: 'var(--text-muted)' }}>
+                          {yearGroup.monthsCount} {yearGroup.monthsCount === 1 ? 'mês' : 'meses'}
+                        </td>
+                        <td style={{ textAlign: 'right' }}>{formatCurrency(yearGroup.existingInstallmentsTotal)}</td>
+                        <td style={{ textAlign: 'right' }}>{formatCurrency(yearGroup.purchaseInstallmentTotal)}</td>
+                        <td style={{ textAlign: 'right' }}>{formatCurrency(yearGroup.baseExtraTotal)}</td>
+                        <td style={{ textAlign: 'right' }}>{formatCurrency(yearGroup.comparisonExtraTotal)}</td>
+                        <td style={{ textAlign: 'right', color: 'hsl(168, 76%, 28%)', fontWeight: 700 }}>
+                          {formatCurrency(yearGroup.finalBase)}
+                        </td>
+                        <td style={{ textAlign: 'right', color: 'hsl(38, 92%, 45%)', fontWeight: 700 }}>
+                          {formatCurrency(yearGroup.finalComparison)}
+                        </td>
+                      </tr>
+
+                      {/* Expanded individual month rows for this year */}
+                      {isExpanded && yearGroup.monthRows.map((row: any) => (
+                        <tr key={row.monthIndex} className="table-row-child">
+                          <td style={{ paddingLeft: '32px', color: 'var(--text-secondary)' }}>
+                            Mês {row.monthIndex}
+                          </td>
+                          <td>{formatDate(row.date)}</td>
+                          <td style={{ textAlign: 'right' }}>{formatCurrency(row.existingInstallments)}</td>
+                          <td style={{ textAlign: 'right' }}>{formatCurrency(row.purchaseInstallment)}</td>
+                          <td style={{ textAlign: 'right' }}>{formatCurrency(row.baseExtra)}</td>
+                          <td style={{ textAlign: 'right' }}>{formatCurrency(row.comparisonExtra)}</td>
+                          <td style={{ textAlign: 'right', color: 'hsl(168, 76%, 28%)' }}>
+                            {formatCurrency(row?.base?.[activeVariant]?.[metric] ?? 0)}
+                          </td>
+                          <td style={{ textAlign: 'right', color: 'hsl(38, 92%, 45%)' }}>
+                            {formatCurrency(row?.comparison?.[activeVariant]?.[metric] ?? 0)}
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  );
+                })}
+
+                {/* MONTHLY FLAT VIEW */}
+                {tableView === 'monthly' && (result?.rows ?? []).map((row: any) => (
                   <tr key={row.monthIndex}>
                     <td style={{ fontWeight: 600 }}>{row.monthIndex}</td>
                     <td>{formatDate(row.date)}</td>
@@ -477,10 +755,10 @@ export function SimulatorPage() {
                     <td style={{ textAlign: 'right' }}>{formatCurrency(row.baseExtra)}</td>
                     <td style={{ textAlign: 'right' }}>{formatCurrency(row.comparisonExtra)}</td>
                     <td style={{ textAlign: 'right', color: 'hsl(168, 76%, 28%)', fontWeight: 600 }}>
-                      {formatCurrency(row.base[activeVariant][metric])}
+                      {formatCurrency(row?.base?.[activeVariant]?.[metric] ?? 0)}
                     </td>
                     <td style={{ textAlign: 'right', color: 'hsl(38, 92%, 45%)', fontWeight: 600 }}>
-                      {formatCurrency(row.comparison[activeVariant][metric])}
+                      {formatCurrency(row?.comparison?.[activeVariant]?.[metric] ?? 0)}
                     </td>
                   </tr>
                 ))}

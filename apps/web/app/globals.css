@@ -687,8 +687,37 @@ a:hover {
   box-shadow: 0 0 0 3px hsla(168, 76%, 28%, 0.1);
 }
 
+.form-select {
+  padding-right: 28px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.form-input:read-only,
+.form-input:disabled {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
 .form-input::placeholder {
   color: var(--text-muted);
+}
+
+.table-row-expandable {
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  background: var(--bg-subtle);
+}
+
+.table-row-expandable:hover {
+  background: var(--emerald-50) !important;
+}
+
+.table-row-child {
+  background: var(--surface-strong);
+  font-size: 0.84rem;
 }
 
 /* ─── Fieldset ─── */
