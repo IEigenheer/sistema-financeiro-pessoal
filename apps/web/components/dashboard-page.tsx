@@ -112,22 +112,15 @@ export function DashboardPage() {
           icon="💰"
           label="Saldo disponível"
           value={current.availableBalance}
-          formula="Entradas − despesas fixas pagas − variáveis − parcelas"
+          formula="Entradas − despesas fixas − saídas variáveis − parcelas − aporte"
           color="sky"
         />
         <StatCard
           icon="📈"
           label="Aporte do mês"
-          value={current.investmentContribution}
+          value={current.effectiveInvestmentContribution}
           formula="Valor destinado a investimento na competência mensal"
           color="amber"
-        />
-        <StatCard
-          icon="🏦"
-          label="Aporte efetivo"
-          value={current.effectiveInvestmentContribution}
-          formula="Aporte real usado no consolidado patrimonial (Contas)"
-          color="violet"
         />
       </div>
 

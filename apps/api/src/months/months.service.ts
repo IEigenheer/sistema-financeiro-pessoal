@@ -328,8 +328,9 @@ export class MonthsService {
     const installmentTotal = roundCurrency(
       activeInstallments.reduce((sum, item) => sum + toNumber(item.installmentAmount), 0),
     );
+    const fixedDeduction = fixedPaidTotal > 0 ? fixedPaidTotal : fixedPlannedTotal;
     const availableBalance = roundCurrency(
-      entriesTotal - fixedPaidTotal - variableTotal - installmentTotal - sheetContribution,
+      entriesTotal - fixedDeduction - variableTotal - installmentTotal - effectiveContribution,
     );
 
     return {

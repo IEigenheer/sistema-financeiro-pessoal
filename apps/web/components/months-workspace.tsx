@@ -26,7 +26,7 @@ const TABS = [
   { key: 'resumo', label: 'Resumo' },
   { key: 'entradas', label: 'Entradas' },
   { key: 'fixas', label: 'Despesas Fixas' },
-  { key: 'variaveis', label: 'Variáveis' },
+  { key: 'variaveis', label: 'Saídas Variáveis' },
   { key: 'parcelas', label: 'Parcelas' },
 ];
 
@@ -44,7 +44,6 @@ export function MonthsWorkspace({ initialYear, initialMonth }: { initialYear?: n
   // Form states
   const [incomeForm, setIncomeForm] = useState({ description: '', day: '', amount: '', kind: 'OTHER' });
   const [expenseForm, setExpenseForm] = useState({ expenseDate: '', description: '', categoryId: '', amount: '' });
-  const [adjustmentForm, setAdjustmentForm] = useState({ investmentContributionOverride: '', investmentReturnAdjustment: '' });
 
   async function loadBootstrap() {
     const [overviewRes, categoriesRes] = await Promise.all([
@@ -69,10 +68,6 @@ export function MonthsWorkspace({ initialYear, initialMonth }: { initialYear?: n
     const response = await fetch(`/api/months/${targetYear}/${targetMonth}`, { cache: 'no-store' });
     const monthDetail = await response.json();
     setDetail(monthDetail);
-    setAdjustmentForm({
-      investmentContributionOverride: monthDetail.adjustment?.investmentContributionOverride?.toString() ?? '',
-      investmentReturnAdjustment: monthDetail.adjustment?.investmentReturnAdjustment?.toString() ?? '',
-    });
     setExpenseForm((current) => ({
       ...current,
       expenseDate: `${targetYear}-${String(targetMonth).padStart(2, '0')}-01`,
@@ -129,23 +124,6 @@ export function MonthsWorkspace({ initialYear, initialMonth }: { initialYear?: n
     await loadMonth(year!, month!);
   }
 
-  async function saveAdjustment(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    await fetch(`/api/months/${year}/${month}/adjustments`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        investmentContributionOverride: adjustmentForm.investmentContributionOverride
-          ? Number(adjustmentForm.investmentContributionOverride)
-          : null,
-        investmentReturnAdjustment: adjustmentForm.investmentReturnAdjustment
-          ? Number(adjustmentForm.investmentReturnAdjustment)
-          : null,
-      }),
-    });
-    await loadMonth(year!, month!);
-  }
-
   async function toggleFixedExpense(item: any, paid: boolean) {
     await fetch(`/api/months/${year}/${month}/fixed-expenses/${item.id}`, {
       method: 'PUT',
@@ -164,9 +142,6 @@ export function MonthsWorkspace({ initialYear, initialMonth }: { initialYear?: n
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         investmentContributionOverride: value,
-        investmentReturnAdjustment: adjustmentForm.investmentReturnAdjustment
-          ? Number(adjustmentForm.investmentReturnAdjustment)
-          : null,
       }),
     });
     await loadMonth(year!, month!);
@@ -176,11 +151,17 @@ export function MonthsWorkspace({ initialYear, initialMonth }: { initialYear?: n
     return (
       <div className="content-stack">
         <div className="stat-cards">
-          {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton skeleton-card" />)}
+          {[1, 2, 3].map((i) => <div key={i} className="skeleton skeleton-card" />)}
         </div>
       </div>
     );
   }
+
+  const incomesTotal = detail.incomes.reduce((sum: number, item: any) => sum + Number(item.amount), 0);
+  const fixedPlannedSum = detail.fixedExpenses.reduce((sum: number, item: any) => sum + Number(item.plannedAmount), 0);
+  const fixedPaidSum = detail.fixedExpenses.reduce((sum: number, item: any) => sum + Number(item.paidAmount), 0);
+  const variablesTotal = detail.variableExpenses.reduce((sum: number, item: any) => sum + Number(item.amount), 0);
+  const installmentsTotal = detail.activeInstallments.reduce((sum: number, item: any) => sum + Number(item.installmentAmount), 0);
 
   return (
     <div className="content-stack">
@@ -222,24 +203,17 @@ export function MonthsWorkspace({ initialYear, initialMonth }: { initialYear?: n
           icon="💰"
           label="Saldo disponível"
           value={detail.availableBalance}
-          formula="Entradas − fixas pagas − variáveis − parcelas"
+          formula="Entradas − despesas fixas − saídas variáveis − parcelas − aporte"
           color="sky"
         />
         <StatCard
           icon="📈"
           label="Aporte do mês"
-          value={detail.investmentContribution}
-          formula="Clique para sobrescrever o aporte deste mês"
+          value={detail.effectiveInvestmentContribution}
+          formula="Clique no valor para editar o aporte deste mês"
           color="amber"
           editable
           onSave={handleAporteSave}
-        />
-        <StatCard
-          icon="🏦"
-          label="Aporte efetivo"
-          value={detail.effectiveInvestmentContribution}
-          formula="Aporte usado no consolidado patrimonial (aba Contas)"
-          color="violet"
         />
       </div>
 
@@ -249,69 +223,48 @@ export function MonthsWorkspace({ initialYear, initialMonth }: { initialYear?: n
 
         {activeTab === 'resumo' && (
           <div className="section-panel-body">
-            <div className="two-col">
-              <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '16px' }}>
-                  Resumo do mês
-                </h3>
-                <dl className="summary-list">
-                  <div className="summary-list-item">
-                    <dt className="summary-list-label">Fixas previstas</dt>
-                    <dd className="summary-list-value">{formatCurrency(detail.fixedPlannedTotal)}</dd>
-                  </div>
-                  <div className="summary-list-item">
-                    <dt className="summary-list-label">Fixas pagas</dt>
-                    <dd className="summary-list-value">{formatCurrency(detail.fixedPaidTotal)}</dd>
-                  </div>
-                  <div className="summary-list-item">
-                    <dt className="summary-list-label">Variáveis</dt>
-                    <dd className="summary-list-value">{formatCurrency(detail.variableTotal)}</dd>
-                  </div>
-                  <div className="summary-list-item">
-                    <dt className="summary-list-label">Parcelas</dt>
-                    <dd className="summary-list-value">{formatCurrency(detail.installmentTotal)}</dd>
-                  </div>
-                  <div className="summary-list-item">
-                    <dt className="summary-list-label">Conta corrente acumulada</dt>
-                    <dd className="summary-list-value">{formatCurrency(detail.checkingBalance)}</dd>
-                  </div>
-                  <div className="summary-list-item">
-                    <dt className="summary-list-label">Investimentos</dt>
-                    <dd className="summary-list-value">{formatCurrency(detail.investmentBalance)}</dd>
-                  </div>
-                </dl>
-              </div>
-
-              <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '16px' }}>
-                  Ajustes do consolidado
-                </h3>
-                <form onSubmit={saveAdjustment} className="form-stack">
-                  <div className="form-field">
-                    <label className="form-label">Aporte sobrescrito em Contas</label>
-                    <span className="form-hint">Altera apenas o consolidado patrimonial</span>
-                    <input
-                      className="form-input"
-                      type="number"
-                      value={adjustmentForm.investmentContributionOverride}
-                      onChange={(e) => setAdjustmentForm({ ...adjustmentForm, investmentContributionOverride: e.target.value })}
-                      placeholder="Deixe vazio para usar o operacional"
-                    />
-                  </div>
-                  <div className="form-field">
-                    <label className="form-label">Ajuste manual investimento</label>
-                    <span className="form-hint">Correção de rendimento ou ajuste avulso</span>
-                    <input
-                      className="form-input"
-                      type="number"
-                      value={adjustmentForm.investmentReturnAdjustment}
-                      onChange={(e) => setAdjustmentForm({ ...adjustmentForm, investmentReturnAdjustment: e.target.value })}
-                      placeholder="0"
-                    />
-                  </div>
-                  <button className="btn btn-primary" type="submit">Salvar ajustes</button>
-                </form>
-              </div>
+            <div style={{ maxWidth: '600px' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '16px' }}>
+                Resumo do mês
+              </h3>
+              <dl className="summary-list">
+                <div className="summary-list-item">
+                  <dt className="summary-list-label">Entradas</dt>
+                  <dd className="summary-list-value" style={{ color: 'var(--emerald-600)' }}>{formatCurrency(detail.entriesTotal)}</dd>
+                </div>
+                <div className="summary-list-item">
+                  <dt className="summary-list-label">Fixas previstas</dt>
+                  <dd className="summary-list-value">{formatCurrency(detail.fixedPlannedTotal)}</dd>
+                </div>
+                <div className="summary-list-item">
+                  <dt className="summary-list-label">Fixas pagas</dt>
+                  <dd className="summary-list-value">{formatCurrency(detail.fixedPaidTotal)}</dd>
+                </div>
+                <div className="summary-list-item">
+                  <dt className="summary-list-label">Saídas variáveis</dt>
+                  <dd className="summary-list-value">{formatCurrency(detail.variableTotal)}</dd>
+                </div>
+                <div className="summary-list-item">
+                  <dt className="summary-list-label">Parcelas</dt>
+                  <dd className="summary-list-value">{formatCurrency(detail.installmentTotal)}</dd>
+                </div>
+                <div className="summary-list-item">
+                  <dt className="summary-list-label">Aporte do mês</dt>
+                  <dd className="summary-list-value" style={{ color: 'var(--amber-600)' }}>{formatCurrency(detail.effectiveInvestmentContribution)}</dd>
+                </div>
+                <div className="summary-list-item">
+                  <dt className="summary-list-label">Saldo disponível</dt>
+                  <dd className="summary-list-value" style={{ fontWeight: 700 }}>{formatCurrency(detail.availableBalance)}</dd>
+                </div>
+                <div className="summary-list-item">
+                  <dt className="summary-list-label">Conta corrente acumulada</dt>
+                  <dd className="summary-list-value">{formatCurrency(detail.checkingBalance)}</dd>
+                </div>
+                <div className="summary-list-item">
+                  <dt className="summary-list-label">Investimentos acumulados</dt>
+                  <dd className="summary-list-value">{formatCurrency(detail.investmentBalance)}</dd>
+                </div>
+              </dl>
             </div>
           </div>
         )}
@@ -352,6 +305,12 @@ export function MonthsWorkspace({ initialYear, initialMonth }: { initialYear?: n
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr style={{ fontWeight: 700, borderTop: '2px solid var(--border)', background: 'var(--bg-subtle)' }}>
+                    <td colSpan={3}>Total</td>
+                    <td style={{ textAlign: 'right' }}>{formatCurrency(incomesTotal)}</td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </div>
@@ -389,6 +348,14 @@ export function MonthsWorkspace({ initialYear, initialMonth }: { initialYear?: n
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr style={{ fontWeight: 700, borderTop: '2px solid var(--border)', background: 'var(--bg-subtle)' }}>
+                    <td colSpan={2}>Total</td>
+                    <td style={{ textAlign: 'right' }}>{formatCurrency(fixedPlannedSum)}</td>
+                    <td style={{ textAlign: 'right' }}>{formatCurrency(fixedPaidSum)}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </div>
@@ -426,6 +393,12 @@ export function MonthsWorkspace({ initialYear, initialMonth }: { initialYear?: n
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr style={{ fontWeight: 700, borderTop: '2px solid var(--border)', background: 'var(--bg-subtle)' }}>
+                    <td colSpan={3}>Total</td>
+                    <td style={{ textAlign: 'right' }}>{formatCurrency(variablesTotal)}</td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </div>
@@ -469,6 +442,12 @@ export function MonthsWorkspace({ initialYear, initialMonth }: { initialYear?: n
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr style={{ fontWeight: 700, borderTop: '2px solid var(--border)', background: 'var(--bg-subtle)' }}>
+                    <td colSpan={4}>Total</td>
+                    <td style={{ textAlign: 'right' }}>{formatCurrency(installmentsTotal)}</td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </div>
