@@ -186,20 +186,21 @@ export class ReportsService {
   }
 
   private async getDashboard(year: number) {
-    const [categories, fixedStatuses, variableExpenses, settings] = await Promise.all([
+    const [categories, fixedStatuses, variableExpenses, installments, settings] = await Promise.all([
       this.prisma.category.findMany({ orderBy: { name: 'asc' } }),
       this.prisma.monthlyFixedExpenseStatus.findMany({
         where: { year, status: 'PAID' },
         include: { fixedExpenseTemplate: true },
       }),
       this.prisma.variableExpense.findMany({ where: { year } }),
+      this.prisma.installmentPlan.findMany(),
       this.configurationService.getSettings(),
     ]);
 
     const startMonth = settings.controlStartDate.getUTCMonth() + 1;
 
     return categories.map((category) => {
-      const monthlyTotals = Array.from({ length: 12 }, (_, index) => {
+      const monthlyWithoutInstallments = Array.from({ length: 12 }, (_, index) => {
         const month = index + 1;
         if (month < startMonth) {
           return 0;
@@ -217,12 +218,47 @@ export class ReportsService {
         return roundCurrency(fixedTotal + variableTotal);
       });
 
+      const monthlyInstallments = Array.from({ length: 12 }, (_, index) => {
+        const month = index + 1;
+        if (month < startMonth) {
+          return 0;
+        }
+
+        const monthDate = toMonthStart(year, month);
+        const instTotal = installments
+          .filter(
+            (item) =>
+              item.categoryId === category.id &&
+              item.firstInstallmentMonth <= monthDate &&
+              item.lastInstallmentMonth >= monthDate,
+          )
+          .reduce((sum, item) => sum + toNumber(item.monthlyAmount), 0);
+
+        return roundCurrency(instTotal);
+      });
+
+      const monthlyTotals = monthlyWithoutInstallments.map((val, idx) =>
+        roundCurrency(val + monthlyInstallments[idx]),
+      );
+
+      const totalYear = roundCurrency(monthlyTotals.reduce((sum, value) => sum + value, 0));
+      const totalYearWithoutInstallments = roundCurrency(
+        monthlyWithoutInstallments.reduce((sum, value) => sum + value, 0),
+      );
+      const totalYearInstallments = roundCurrency(
+        monthlyInstallments.reduce((sum, value) => sum + value, 0),
+      );
+
       return {
         categoryId: category.id,
         categoryName: category.name,
         type: category.type,
         monthlyTotals,
-        totalYear: roundCurrency(monthlyTotals.reduce((sum, value) => sum + value, 0)),
+        monthlyWithoutInstallments,
+        monthlyInstallments,
+        totalYear,
+        totalYearWithoutInstallments,
+        totalYearInstallments,
       };
     });
   }

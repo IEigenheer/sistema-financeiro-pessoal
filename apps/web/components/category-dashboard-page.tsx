@@ -22,8 +22,8 @@ const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', '
 
 export function CategoryDashboardPage() {
   const [overview, setOverview] = useState<any>(null);
-  const [chartType, setChartType] = useState<'stacked' | 'grouped'>('stacked');
   const [donutMonth, setDonutMonth] = useState(0); // 0-indexed
+  const [includeInstallments, setIncludeInstallments] = useState(true);
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -43,7 +43,7 @@ export function CategoryDashboardPage() {
   const dashboard = overview?.dashboard ?? [];
   const colors = useMemo(() => generateCategoryColors(dashboard.length), [dashboard.length]);
 
-  // Compute KPIs
+  // Compute KPIs - MUST include installments
   const totalYear = dashboard.reduce((sum: number, cat: any) => sum + (cat.totalYear || 0), 0);
   const topCategory = dashboard.length > 0
     ? [...dashboard].sort((a: any, b: any) => b.totalYear - a.totalYear)[0]
@@ -64,56 +64,14 @@ export function CategoryDashboardPage() {
 
   const filteredDashboard = dashboard.filter((cat: any) => selectedCategories.has(cat.categoryId));
 
-  const barChartOption = useMemo(() => ({
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-      backgroundColor: 'hsl(25, 20%, 15%)',
-      borderColor: 'transparent',
-      textStyle: { color: 'hsl(36, 40%, 94%)', fontSize: 12 },
-    },
-    legend: {
-      top: 0,
-      textStyle: { fontSize: 10, color: 'hsl(25, 10%, 55%)' },
-      type: 'scroll',
-    },
-    grid: { left: 24, right: 24, top: 72, bottom: 24, containLabel: true },
-    xAxis: {
-      type: 'category',
-      data: MONTHS,
-      axisLabel: { color: 'hsl(25, 10%, 55%)', fontSize: 11 },
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: {
-        formatter: (value: number) => `R$ ${Math.round(value).toLocaleString('pt-BR')}`,
-        color: 'hsl(25, 10%, 55%)',
-        fontSize: 11,
-      },
-      splitLine: { lineStyle: { color: 'hsl(25, 20%, 40%, 0.08)' } },
-    },
-    series: filteredDashboard.map((category: any, idx: number) => {
-      const colorIdx = dashboard.indexOf(category);
-      return {
-        name: category.categoryName,
-        type: 'bar',
-        stack: chartType === 'stacked' ? 'total' : undefined,
-        emphasis: { focus: 'series' },
-        data: category.monthlyTotals,
-        itemStyle: { color: colors[colorIdx] },
-        barMaxWidth: 40,
-      };
-    }),
-    animationDuration: 600,
-  }), [filteredDashboard, dashboard, colors, chartType]);
-
   const donutChartOption = useMemo(() => {
     const data = filteredDashboard
-      .map((cat: any, idx: number) => {
+      .map((cat: any) => {
         const colorIdx = dashboard.indexOf(cat);
+        const valArray = includeInstallments ? cat.monthlyTotals : cat.monthlyWithoutInstallments;
         return {
           name: cat.categoryName,
-          value: cat.monthlyTotals[donutMonth] || 0,
+          value: valArray ? valArray[donutMonth] || 0 : 0,
           itemStyle: { color: colors[colorIdx] },
         };
       })
@@ -136,7 +94,7 @@ export function CategoryDashboardPage() {
       },
       series: [{
         type: 'pie',
-        radius: ['45%', '72%'],
+        radius: ['42%', '72%'],
         center: ['35%', '50%'],
         avoidLabelOverlap: true,
         label: { show: false },
@@ -147,7 +105,7 @@ export function CategoryDashboardPage() {
       }],
       animationDuration: 600,
     };
-  }, [filteredDashboard, dashboard, colors, donutMonth]);
+  }, [filteredDashboard, dashboard, colors, donutMonth, includeInstallments]);
 
   if (!overview) {
     return (
@@ -161,29 +119,30 @@ export function CategoryDashboardPage() {
     <div className="content-stack">
       <PageHeader
         title="Dashboard de gastos"
-        subtitle="Análise por categoria ao longo do ano"
+        subtitle="Análise por categoria ao longo do ano (despesas fixas, variáveis e parcelas)"
       />
 
+      {/* Cards - Obligatorily considering installments */}
       <div className="stat-cards">
         <StatCard
           icon="💸"
-          label="Total anual"
+          label="Total anual (com parcelas)"
           value={totalYear}
-          formula="Soma de todas as despesas do ano por categoria"
+          formula="Soma de todas as despesas e parcelas do ano por categoria"
           color="rose"
         />
         <StatCard
           icon="🏷️"
           label="Maior categoria"
           value={topCategory ? `${topCategory.categoryName}` : '—'}
-          formula={topCategory ? `${formatCurrency(topCategory.totalYear)} no ano` : ''}
+          formula={topCategory ? `${formatCurrency(topCategory.totalYear)} no ano (incluindo parcelas)` : ''}
           color="amber"
         />
         <StatCard
           icon="📊"
-          label="Média mensal"
+          label="Média mensal (com parcelas)"
           value={avgMonthly}
-          formula="Total anual ÷ 12 meses"
+          formula="Total anual com parcelas ÷ 12 meses"
           color="sky"
         />
       </div>
@@ -205,29 +164,22 @@ export function CategoryDashboardPage() {
         ))}
       </div>
 
-      <div className="two-col">
-        <div className="section-panel">
-          <div className="section-panel-header">
-            <div>
-              <div className="section-panel-title">Gastos por mês</div>
-              <div className="section-panel-subtitle">Visão mensal por categoria</div>
-            </div>
-            <div className="toggle-group">
-              <button className={`toggle-item ${chartType === 'stacked' ? 'toggle-item-active' : ''}`} onClick={() => setChartType('stacked')} type="button">Empilhado</button>
-              <button className={`toggle-item ${chartType === 'grouped' ? 'toggle-item-active' : ''}`} onClick={() => setChartType('grouped')} type="button">Agrupado</button>
-            </div>
+      {/* Pie Chart Section with Installment Toggle */}
+      <div className="section-panel">
+        <div className="section-panel-header">
+          <div>
+            <div className="section-panel-title">Distribuição dos gastos</div>
+            <div className="section-panel-subtitle">Proporção por categoria em {MONTHS[donutMonth]}</div>
           </div>
-          <div className="section-panel-body">
-            <EChart option={barChartOption} height={380} />
-          </div>
-        </div>
-
-        <div className="section-panel">
-          <div className="section-panel-header">
-            <div>
-              <div className="section-panel-title">Distribuição</div>
-              <div className="section-panel-subtitle">Proporção por categoria</div>
-            </div>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button
+              className={`filter-check ${includeInstallments ? 'filter-check-active' : ''}`}
+              onClick={() => setIncludeInstallments((v) => !v)}
+              type="button"
+            >
+              <span className="filter-check-box">{includeInstallments ? '✓' : ''}</span>
+              Incluir parcelas
+            </button>
             <select
               className="month-nav-select"
               value={donutMonth}
@@ -238,16 +190,18 @@ export function CategoryDashboardPage() {
               ))}
             </select>
           </div>
-          <div className="section-panel-body">
-            <EChart option={donutChartOption} height={380} />
-          </div>
+        </div>
+        <div className="section-panel-body">
+          <EChart option={donutChartOption} height={380} />
         </div>
       </div>
 
+      {/* Category Details Table */}
       <div className="section-panel">
         <div className="section-panel-header">
           <div>
             <div className="section-panel-title">Detalhamento por categoria</div>
+            <div className="section-panel-subtitle">Totais anuais e mensais considerando parcelas</div>
           </div>
         </div>
         <div className="section-panel-body-flush">
