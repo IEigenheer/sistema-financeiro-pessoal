@@ -153,12 +153,8 @@ export function DashboardPage() {
               </div>
               <div className="summary-list-item">
                 <dt className="summary-list-label">Investimentos acumulados</dt>
-                <dd className="summary-list-value">{formatCurrency(currentAccount?.investmentBalance)}</dd>
-              </div>
-              <div className="summary-list-item">
-                <dt className="summary-list-label">Patrimônio total</dt>
-                <dd className="summary-list-value" style={{ color: 'hsl(168, 76%, 28%)', fontSize: '1.05rem' }}>
-                  {formatCurrency(currentAccount?.netWorth)}
+                <dd className="summary-list-value" style={{ color: 'var(--emerald-600)', fontSize: '1.05rem', fontWeight: 700 }}>
+                  {formatCurrency(currentAccount?.investmentBalance)}
                 </dd>
               </div>
             </dl>
