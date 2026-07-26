@@ -25,4 +25,10 @@ export class FixedExpensesService {
       data: dto,
     });
   }
+
+  remove(id: string) {
+    return this.prisma.fixedExpenseTemplate.delete({
+      where: { id },
+    });
+  }
 }

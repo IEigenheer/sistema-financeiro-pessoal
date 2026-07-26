@@ -213,7 +213,7 @@ export function SettingsPage() {
           <div className="section-panel-header">
             <div className="section-panel-title">Categorias</div>
           </div>
-          <div className="section-panel-body-flush">
+          <div className="section-panel-body-flush" style={{ maxHeight: '280px', overflowY: 'auto' }}>
             <div className="table-wrap">
               <table>
                 <thead>

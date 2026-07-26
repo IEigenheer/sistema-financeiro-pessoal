@@ -118,6 +118,24 @@ export class MonthsService {
     });
   }
 
+  async updateIncome(id: string, dto) {
+    return this.prisma.monthlyIncome.update({
+      where: { id },
+      data: {
+        description: dto.description,
+        day: dto.day,
+        amount: dto.amount,
+        kind: dto.kind,
+      },
+    });
+  }
+
+  async removeIncome(id: string) {
+    return this.prisma.monthlyIncome.delete({
+      where: { id },
+    });
+  }
+
   async createVariableExpense(year: number, month: number, dto) {
     return this.prisma.variableExpense.create({
       data: {
@@ -128,6 +146,24 @@ export class MonthsService {
         categoryId: dto.categoryId,
         amount: dto.amount,
       },
+    });
+  }
+
+  async updateVariableExpense(id: string, dto) {
+    return this.prisma.variableExpense.update({
+      where: { id },
+      data: {
+        expenseDate: new Date(dto.expenseDate),
+        description: dto.description,
+        categoryId: dto.categoryId,
+        amount: dto.amount,
+      },
+    });
+  }
+
+  async removeVariableExpense(id: string) {
+    return this.prisma.variableExpense.delete({
+      where: { id },
     });
   }
 

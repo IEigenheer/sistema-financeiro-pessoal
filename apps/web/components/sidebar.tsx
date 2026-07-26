@@ -9,6 +9,9 @@ const items = [
   { href: '/accounts', label: 'Contas', icon: '💳' },
   { href: '/dashboard', label: 'Dashboard', icon: '📈' },
   { href: '/simulator', label: 'Simulador', icon: '🎯' },
+  { href: '/categories', label: 'Categorias', icon: '🏷️' },
+  { href: '/fixed-expenses', label: 'Gastos Fixos', icon: '📌' },
+  { href: '/installments', label: 'Parcelamentos', icon: '📋' },
   { href: '/settings', label: 'Base', icon: '⚙️' },
 ];
 

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
 import { InstallmentsService } from './installments.service';
 import { UpsertInstallmentDto } from './dto/upsert-installment.dto';
 
@@ -19,5 +19,10 @@ export class InstallmentsController {
   @Put(':id')
   update(@Param('id') id: string, @Body() dto: UpsertInstallmentDto) {
     return this.installmentsService.update(id, dto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.installmentsService.remove(id);
   }
 }

@@ -40,3 +40,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   return proxy(request, await params);
 }
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  return proxy(request, await params);
+}

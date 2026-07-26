@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put } from '@nestjs/common';
 import { MonthsService } from './months.service';
 import { CreateIncomeDto } from './dto/create-income.dto';
 import { CreateVariableExpenseDto } from './dto/create-variable-expense.dto';
@@ -26,6 +26,21 @@ export class MonthsController {
     return this.monthsService.createIncome(year, month, dto);
   }
 
+  @Put(':year/:month/incomes/:id')
+  updateIncome(
+    @Param('id') id: string,
+    @Body() dto: CreateIncomeDto,
+  ) {
+    return this.monthsService.updateIncome(id, dto);
+  }
+
+  @Delete(':year/:month/incomes/:id')
+  removeIncome(
+    @Param('id') id: string,
+  ) {
+    return this.monthsService.removeIncome(id);
+  }
+
   @Post(':year/:month/variable-expenses')
   createVariableExpense(
     @Param('year', ParseIntPipe) year: number,
@@ -33,6 +48,21 @@ export class MonthsController {
     @Body() dto: CreateVariableExpenseDto,
   ) {
     return this.monthsService.createVariableExpense(year, month, dto);
+  }
+
+  @Put(':year/:month/variable-expenses/:id')
+  updateVariableExpense(
+    @Param('id') id: string,
+    @Body() dto: CreateVariableExpenseDto,
+  ) {
+    return this.monthsService.updateVariableExpense(id, dto);
+  }
+
+  @Delete(':year/:month/variable-expenses/:id')
+  removeVariableExpense(
+    @Param('id') id: string,
+  ) {
+    return this.monthsService.removeVariableExpense(id);
   }
 
   @Put(':year/:month/fixed-expenses/:templateId')

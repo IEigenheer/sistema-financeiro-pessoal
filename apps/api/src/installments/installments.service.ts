@@ -35,4 +35,10 @@ export class InstallmentsService {
       },
     });
   }
+
+  remove(id: string) {
+    return this.prisma.installmentPlan.delete({
+      where: { id },
+    });
+  }
 }
